@@ -28,7 +28,7 @@ pub struct Entity {
 pub struct EntityManager {
     entities: HashMap<String, Entity>,
     /// Actors despawned since the last [`clear`](Self::clear), by CARLA id: a contact CARLA
-    /// reported on an entity's last frame can reach csb after SSv2 has despawned it, and
+    /// reported on an entity's last frame can reach swb after SSv2 has despawned it, and
     /// must still be named (roadmap 032 N4).
     departed: HashMap<u32, String>,
 }

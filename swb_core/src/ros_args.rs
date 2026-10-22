@@ -1,6 +1,6 @@
 //! ROS parameters from the command line, without a ROS client library.
 //!
-//! csb has no topics or services; its only ROS-facing surface is being started by `ros2 run`
+//! swb has no topics or services; its only ROS-facing surface is being started by `ros2 run`
 //! or a launch file with parameters. Those arrive on the command line after `--ros-args`,
 //! as `-p name:=value` (`ros2 run ... --ros-args -p carla_port:=2000`) or as
 //! `--params-file <yaml>` (what launch_ros and play_launch write for a `<node>`'s `<param>`
@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use eyre::{Result, WrapErr};
 
 /// The node name parameters files may key their section by (besides `/**`).
-pub const NODE_NAME: &str = "carla_scenario_bridge";
+pub const NODE_NAME: &str = "scenario_world_bridge";
 
 /// Parameter values as strings, by name. Later sources win: a `-p` after a
 /// `--params-file` overrides it, as in rcl.
@@ -118,7 +118,7 @@ fn parse_params_yaml(text: &str) -> Result<HashMap<String, String>> {
 pub const RETIRED_CONFIG_DIR_ENV: &str = "CSB_CONFIG_DIR";
 
 /// The bridge's config file: the `config_file` parameter, then the installed package's
-/// (`share/carla_scenario_bridge/config/bridge_config.yaml`), then `config/bridge_config.yaml`
+/// (`share/scenario_world_bridge/config/bridge_config.yaml`), then `config/bridge_config.yaml`
 /// relative to the working directory (a source checkout).
 ///
 /// `CSB_CONFIG_DIR` no longer chooses it, and is refused while set, so an old shell cannot
@@ -164,13 +164,13 @@ fn resolve_config_file(params: &RosParams, installed: Option<PathBuf>) -> PathBu
         .unwrap_or_else(|| PathBuf::from("config/bridge_config.yaml"))
 }
 
-/// The installed default config: `<prefix>/share/carla_scenario_bridge/config/bridge_config.yaml`
+/// The installed default config: `<prefix>/share/scenario_world_bridge/config/bridge_config.yaml`
 /// for the first prefix in `AMENT_PREFIX_PATH` that has one.
 pub fn installed_config() -> Option<PathBuf> {
     let prefixes = std::env::var("AMENT_PREFIX_PATH").ok()?;
     prefixes
         .split(':')
-        .map(|p| Path::new(p).join("share/carla_scenario_bridge/config/bridge_config.yaml"))
+        .map(|p| Path::new(p).join("share/scenario_world_bridge/config/bridge_config.yaml"))
         .find(|p| p.is_file())
 }
 
@@ -197,7 +197,7 @@ mod tests {
     fn params_yaml_sections_and_types() {
         let p = parse_params_yaml(
             "/**:\n  ros__parameters:\n    carla_host: a\n    carla_port: 2000\n\
-             /carla_scenario_bridge:\n  ros__parameters:\n    carla_host: b\n    verbose: true\n\
+             /scenario_world_bridge:\n  ros__parameters:\n    carla_host: b\n    verbose: true\n\
              other_node:\n  ros__parameters:\n    carla_host: c\n",
         )
         .unwrap();
@@ -208,7 +208,7 @@ mod tests {
 
     #[test]
     fn a_later_dash_p_overrides_a_params_file() {
-        let dir = std::env::temp_dir().join(format!("csb-rosargs-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("swb-rosargs-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("p.yaml");
         std::fs::write(&file, "/**:\n  ros__parameters:\n    carla_port: 2000\n").unwrap();
@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn config_file_is_the_parameter_then_the_installed_one_then_the_checkout() {
-        let shared = PathBuf::from("/opt/x/share/carla_scenario_bridge/config/bridge_config.yaml");
+        let shared = PathBuf::from("/opt/x/share/scenario_world_bridge/config/bridge_config.yaml");
         let p = RosParams::from_args(args("--ros-args -p config_file:=/tmp/mine.yaml")).unwrap();
         assert_eq!(
             resolve_config_file(&p, Some(shared.clone())),

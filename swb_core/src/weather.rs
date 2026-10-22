@@ -1,5 +1,5 @@
 //! CARLA weather as the bridge configures it: presets by name, and the values the
-//! `/carla/set_weather` and `/carla/get_weather` services carry (roadmap 018). Plain data:
+//! `/scenario_world_bridge/set_weather` and `/scenario_world_bridge/get_weather` services carry (roadmap 018). Plain data:
 //! the conversion to and from carla-rust's `WeatherParameters` is the CARLA backend's
 //! (`backend::carla::weather`), which also checks the presets below against carla-rust's.
 //!
@@ -31,7 +31,7 @@ pub struct Weather {
 }
 
 impl Weather {
-    /// The nine user-settable fields, in `csb_interfaces/msg/Weather` order.
+    /// The nine user-settable fields, in `swb_interfaces/msg/Weather` order.
     pub fn user_fields(&self) -> [f32; 9] {
         [
             self.cloudiness,
@@ -254,7 +254,7 @@ impl WeatherReply {
 }
 
 /// The world protocol's names for [`Weather`]'s fields, in its order: the nine a request may
-/// set first (`csb_interfaces/msg/Weather` order), then the rest.
+/// set first (`swb_interfaces/msg/Weather` order), then the rest.
 pub const FIELD_NAMES: [&str; 14] = [
     "cloudiness",
     "precipitation",
@@ -318,7 +318,7 @@ impl Weather {
 /// The world protocol's form of a weather and of the requests and replies about it.
 pub mod wire_form {
     use super::*;
-    use crate::proto::csb_world as wire;
+    use crate::proto::swb_world as wire;
 
     fn parameters(names: &[&str], values: &[f32]) -> std::collections::HashMap<String, f64> {
         names

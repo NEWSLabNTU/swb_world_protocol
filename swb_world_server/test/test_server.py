@@ -1,6 +1,6 @@
 """The world server's protocol side on a fake world (roadmaps 037, 046); no simulator needed.
 
-    python3 -m unittest discover -s src/csb_world_server/test     # protobuf only
+    python3 -m unittest discover -s src/swb_world_server/test     # protobuf only
 """
 import shutil
 import subprocess
@@ -11,10 +11,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from csb_world_server import lifetime  # noqa: E402
-from csb_world_server import protocol as pb  # noqa: E402
-from csb_world_server.server import Drive, WorldServer  # noqa: E402
-from csb_world_server.world import World  # noqa: E402
+from swb_world_server import lifetime  # noqa: E402
+from swb_world_server import protocol as pb  # noqa: E402
+from swb_world_server.server import Drive, WorldServer  # noqa: E402
+from swb_world_server.world import World  # noqa: E402
 
 
 class FakeWorld(World):
@@ -396,13 +396,13 @@ class DescriptorTest(unittest.TestCase):
     def test_the_descriptor_set_is_the_protos(self):
         root = Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as d:
-            out = Path(d) / "csb_world.desc"
+            out = Path(d) / "swb_world.desc"
             subprocess.run(["protoc", f"--proto_path={root / 'proto'}",
-                            f"--descriptor_set_out={out}", str(root / "proto/csb_world.proto")],
+                            f"--descriptor_set_out={out}", str(root / "proto/swb_world.proto")],
                            check=True)
             self.assertEqual(out.read_bytes(), pb.DESCRIPTOR_SET.read_bytes(),
-                             "csb_world.desc is stale: run "
-                             "src/csb_world_server/scripts/gen_world_proto.sh")
+                             "swb_world.desc is stale: run "
+                             "src/swb_world_server/scripts/gen_world_proto.sh")
 
 
 if __name__ == "__main__":

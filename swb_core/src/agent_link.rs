@@ -1,11 +1,11 @@
-//! Entities whose OpenSCENARIO controller is `agent`: csb as a *commander* of the agent
+//! Entities whose OpenSCENARIO controller is `agent`: swb as a *commander* of the agent
 //! relay (docs/design/user-workflow.md, "The agent protocol (I3)", "Commanders").
 //!
 //! Such an entity is a CARLA vehicle spawned with `role_name` = the entity name, so the
 //! vehicle side started with `vehicle_name:=<entity>` attaches to it, and driven by the
 //! agent that registered with the relay under the entity name -- typically a full Autoware
 //! behind `acb_pilot agent`. SSv2 does not move it (the fork's SimulatorDrivenVehicleEntity,
-//! as for `simulator_autopilot`); csb reads its pose back from CARLA, and forwards what the
+//! as for `simulator_autopilot`); swb reads its pose back from CARLA, and forwards what the
 //! scenario asks of it to its agent:
 //!
 //! | scenario / SSv2                         | agent command      |
@@ -385,7 +385,7 @@ impl RelayConnection {
             next_id: 1,
         };
         connection.send(json!({"type": "register", "role": "commander",
-                                "agent": "carla_scenario_bridge"}))?;
+                                "agent": "scenario_world_bridge"}))?;
         let answer = loop {
             let message = connection.read_message()?;
             if message.get("type").and_then(Value::as_str) != Some("heartbeat") {
@@ -721,15 +721,15 @@ fn run_worker(relay: &str, shared: &(Mutex<Shared>, Condvar)) {
     }
 }
 
-/// Role names csb gave agent-driven vehicles, kept across csb processes so a bridge that
+/// Role names swb gave agent-driven vehicles, kept across swb processes so a bridge that
 /// died does not leave them for ever: their role is the entity name (that is how the vehicle
-/// side finds them), so unlike other entities they carry no `csb_entity:` mark. On tmpfs,
+/// side finds them), so unlike other entities they carry no `swb_entity:` mark. On tmpfs,
 /// beside the episode clock (`clock_store`).
 pub fn ledger_path(host: &str, port: u16) -> PathBuf {
     let base = std::env::var_os("XDG_RUNTIME_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
-    base.join("carla-scenario-bridge")
+    base.join("scenario-world-bridge")
         .join(format!("agent-vehicles-{host}-{port}"))
 }
 
@@ -984,7 +984,7 @@ mod tests {
     #[test]
     fn the_ledger_round_trips() {
         let path = std::env::temp_dir()
-            .join(format!("csb-ledger-test-{}", std::process::id()))
+            .join(format!("swb-ledger-test-{}", std::process::id()))
             .join("agents");
         assert!(load_ledger(&path).is_empty());
         let names = ["b".to_string(), "a".to_string(), "b".to_string()];

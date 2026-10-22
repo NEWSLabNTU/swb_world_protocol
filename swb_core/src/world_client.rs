@@ -3,15 +3,15 @@
 //!
 //! Relaxed and correlated, so a request after a timeout is possible and a late reply to the
 //! old one is dropped. The bridge's `RemoteBackend` drives a server through it; the
-//! `csb_world_check` tool probes and checks one.
+//! `swb_world_check` tool probes and checks one.
 
 use std::time::Duration;
 
 use prost::Message;
 
-use crate::proto::csb_world as wire;
+use crate::proto::swb_world as wire;
 
-/// The protocol version this build speaks (`proto/csb_world.proto`).
+/// The protocol version this build speaks (`proto/swb_world.proto`).
 pub const PROTOCOL_VERSION: u32 = 4;
 
 /// Why a round trip failed.

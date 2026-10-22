@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn map_origin_is_zero_without_a_file_and_read_from_one() {
         use crate::coordinate_conversion::MapOrigin;
-        let dir = std::env::temp_dir().join(format!("csb-map-origin-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("swb-map-origin-{}", std::process::id()));
         std::fs::create_dir_all(dir.join("carla")).unwrap();
         assert_eq!(load_map_origin(&dir).unwrap(), MapOrigin::default());
 

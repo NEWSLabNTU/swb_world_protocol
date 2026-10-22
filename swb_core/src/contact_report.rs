@@ -1,7 +1,7 @@
 //! The run's CARLA contacts, written to a file for the runner (roadmap 021).
 //!
 //! `collision_monitor` logs what CARLA's collision sensor saw; this writes the same record
-//! as one JSON file per ego run, so `physical_verdict` (csb_launch) can join it into the
+//! as one JSON file per ego run, so `physical_verdict` (swb_launch) can join it into the
 //! scenario's JUnit result as a `carla_contact` testcase. SSv2 has no protocol slot for a
 //! simulator-side collision, so the join has to happen after the run, where the runner
 //! already merges verdicts.
@@ -162,13 +162,13 @@ pub fn resolve_dir(setting: Option<&str>) -> Option<PathBuf> {
     }
 }
 
-/// `$ROS_HOME/csb/contacts`, else `~/.ros/csb/contacts` -- where ROS keeps a node's files.
+/// `$ROS_HOME/swb/contacts`, else `~/.ros/swb/contacts` -- where ROS keeps a node's files.
 fn default_dir() -> Option<PathBuf> {
     let ros_home = std::env::var_os("ROS_HOME")
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".ros")))?;
-    Some(ros_home.join("csb").join("contacts"))
+    Some(ros_home.join("swb").join("contacts"))
 }
 
 /// `20261011T015319.572Z_e12.json`: sorts by time, and the episode keeps two runs that
@@ -271,7 +271,7 @@ mod tests {
 
     fn scratch(tag: &str) -> PathBuf {
         let dir =
-            std::env::temp_dir().join(format!("csb-contact-test-{tag}-{}", std::process::id()));
+            std::env::temp_dir().join(format!("swb-contact-test-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         dir
     }
@@ -312,10 +312,10 @@ mod tests {
         assert_eq!(resolve_dir(Some("off")), None);
         assert_eq!(resolve_dir(Some(" off ")), None);
         assert_eq!(resolve_dir(Some("/x/y")), Some(PathBuf::from("/x/y")));
-        // Unset and empty both mean the default, which ends in csb/contacts.
+        // Unset and empty both mean the default, which ends in swb/contacts.
         for unset in [None, Some(""), Some("  ")] {
             let dir = resolve_dir(unset).expect("HOME is set in tests");
-            assert!(dir.ends_with("csb/contacts"), "{}", dir.display());
+            assert!(dir.ends_with("swb/contacts"), "{}", dir.display());
         }
     }
 

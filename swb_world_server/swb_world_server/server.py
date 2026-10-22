@@ -3,10 +3,10 @@ replies out.
 
 Pure Python, so it is tested without a simulator (`test/test_server.py`, on a fake world).
 `run()` puts a `World` on a socket: what a simulator's entry point calls (the Isaac one is
-`csb_isaac.world_server`).
+`isaac_world.world_server`).
 
 The shell owns the protocol so a `World` does not have to: the version check, the owner lease
-(one bridge at a time; `proto/csb_world.proto`, "Ownership"), handles, request validation
+(one bridge at a time; `proto/swb_world.proto`, "Ownership"), handles, request validation
 against the declared capabilities, the drives an `Apply` hands the next `Step`, the clock.
 """
 import logging
@@ -19,7 +19,7 @@ from . import lifetime
 from . import protocol as pb
 from .world import Drive, World  # noqa: F401 - re-exported for World implementations
 
-log = logging.getLogger("csb_world_server")
+log = logging.getLogger("swb_world_server")
 
 # How long an owner may say nothing before another client may take the server over, s. The
 # bridge probes every few seconds between scenarios (its idle check), so a live one never

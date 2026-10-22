@@ -510,7 +510,7 @@ mod real_map_tests {
     /// Parse the actual converted map pack when it is available locally.
     ///
     /// Ignored by default: the maps are large and not checked in. Looks at
-    /// `CSB_MAP_SOURCE`, then the repo's `data/carla-autoware-bridge` (populated by
+    /// `SWB_MAP_SOURCE`, then the repo's `data/carla-autoware-bridge` (populated by
     /// `scripts/download_maps.sh`), then the original NAS path. Run with
     /// `cargo test -- --ignored --nocapture` where one of them exists.
     #[test]
@@ -524,7 +524,7 @@ mod real_map_tests {
             "{}/nas/autoveh/dataset/CARLA-map-from-TUM",
             std::env::var("HOME").expect("HOME")
         );
-        let base = std::env::var("CSB_MAP_SOURCE").unwrap_or_else(|_| {
+        let base = std::env::var("SWB_MAP_SOURCE").unwrap_or_else(|_| {
             if std::path::Path::new(&repo_data).is_dir() {
                 repo_data
             } else {

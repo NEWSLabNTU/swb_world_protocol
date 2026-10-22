@@ -50,7 +50,7 @@ def hostname():
 
 
 def client_id(pb):
-    """This process as a `ClientId` (`pb` is `csb_world_server.protocol`)."""
+    """This process as a `ClientId` (`pb` is `swb_world_server.protocol`)."""
     return pb.ClientId(host=hostname(), pid=os.getpid(), start_time=start_time(os.getpid()) or 0)
 
 

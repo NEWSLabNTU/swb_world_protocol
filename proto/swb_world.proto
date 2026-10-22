@@ -1,7 +1,7 @@
 // The world protocol (roadmaps 037, 046): the one interface between the scenario bridge
 // (`RemoteBackend`, REQ) and a simulator's world server (REP): the Isaac Sim world server
-// (`src/csb_isaac`, on the Python shell `csb_world_server`) and the CARLA world server
-// (`src/carla_world`, on the Rust shell `csb_core::world_server`). ZMQ, one Request and one
+// (`src/isaac_world`, on the Python shell `swb_world_server`) and the CARLA world server
+// (`src/carla_world`, on the Rust shell `swb_core::world_server`). ZMQ, one Request and one
 // Reply per round trip.
 //
 // Frames: the server's world frame is right-handed and Z-up, metres and radians (ROS's); the
@@ -26,8 +26,8 @@
 // is provably gone (same host, its pid dead or reused) or silent for longer than the lease.
 // Every other request names its client and is refused from a non-owner.
 //
-// Versions: bump PROTOCOL_VERSION (the bridge's `backend::remote`, `csb_world_server`'s
-// `protocol.py`, `csb_core::world_server`) on any change a peer of the other version would
+// Versions: bump PROTOCOL_VERSION (the bridge's `backend::remote`, `swb_world_server`'s
+// `protocol.py`, `swb_core::world_server`) on any change a peer of the other version would
 // misread; `Hello` refuses a mismatch with both versions. 2 (044): tracked bodies, contacts per
 // reporting side. 3: traffic signals. 4 (046): the unified interface -- capabilities, the
 // owner lease, `Apply`, `SetStepTime`, `SetGoal`, the weather, `Release`, the rich spawn and
@@ -35,7 +35,7 @@
 
 syntax = "proto3";
 
-package csb_world;
+package swb_world;
 
 message Vec3 {
   double x = 1;

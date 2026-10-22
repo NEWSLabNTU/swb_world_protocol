@@ -9,14 +9,14 @@
 //! All of it is integer nanoseconds, with one conversion, [`nanos`]: round half away from
 //! zero of `seconds * 1e9`, applied to each term on its own --
 //! `sim_ns = nanos(elapsed) + epoch_ns`, `epoch_ns += nanos(E_last) + nanos(Δ_last)`.
-//! acb's `clock.rs` applies the identical rule, so the time csb reports to SSv2 and the
+//! acb's `clock.rs` applies the identical rule, so the time swb reports to SSv2 and the
 //! `/clock` acb publishes for the same frame are the same integer, not two roundings of an
 //! f64 sum that disagree by 1 ns on a share of frames.
 //!
 //! acb applies the rule on its own, from the same frame stream, with no channel between
 //! the two. They agree bit-exactly only if they saw the same last frame. That is why
 //! [`reload_as_pause`] switches CARLA to synchronous mode *before* it reads the last
-//! snapshot: in sync mode nothing ticks unless csb ticks, so the frame csb reads is the last
+//! snapshot: in sync mode nothing ticks unless swb ticks, so the frame swb reads is the last
 //! frame acb's `on_tick` receives before the reload.
 
 /// Seconds to integer nanoseconds: `round(secs * 1e9)`, half away from zero (`f64::round`).
@@ -25,7 +25,7 @@ pub fn nanos(secs: f64) -> i64 {
     (secs * 1e9).round() as i64
 }
 
-/// The episode epoch, and the last CARLA frame time csb has read.
+/// The episode epoch, and the last CARLA frame time swb has read.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct EpisodeClock {
     /// Nanoseconds added to CARLA's `elapsed_seconds`. Starts at 0.
@@ -65,7 +65,7 @@ impl EpisodeClock {
         self.last_frame
     }
 
-    /// A clock carried over from a previous csb process (see `clock_store`).
+    /// A clock carried over from a previous swb process (see `clock_store`).
     pub fn restored(epoch_ns: i64, last_frame: Option<(f64, f64)>) -> Self {
         Self {
             epoch_ns,
@@ -100,10 +100,10 @@ pub fn fmt_ns(ns: i64) -> String {
     format!("{sign}{}.{:09}", a / 1_000_000_000, a % 1_000_000_000)
 }
 
-/// The old episode's last `elapsed_seconds`, counted from csb's two snapshots around a
+/// The old episode's last `elapsed_seconds`, counted from swb's two snapshots around a
 /// synchronous `load_world(town, reset_settings = false)` (roadmap 015 step 7).
 ///
-/// CARLA's `LoadEpisode` ticks the old episode itself while it waits, so the frame csb read
+/// CARLA's `LoadEpisode` ticks the old episode itself while it waits, so the frame swb read
 /// before the load (`f0`, `e0`, step `delta`) is not the old episode's last: acb, following
 /// `on_tick`, sees the extra frames. The frame counter continues across episodes, and the new
 /// world (kept synchronous) only advances by `delta` per tick, so its snapshot `(f1, e1)`
@@ -138,7 +138,7 @@ pub fn old_episode_last_elapsed(e0: f64, delta: f64, f0: u64, f1: u64, e1: f64) 
 pub trait EpisodeReload {
     type World;
     type Error;
-    /// Put CARLA in synchronous mode, so nothing ticks until csb does.
+    /// Put CARLA in synchronous mode, so nothing ticks until swb does.
     fn enter_sync(&mut self) -> Result<(), Self::Error>;
     /// `(elapsed_seconds, delta_seconds)` of the current snapshot.
     fn read_frame(&mut self) -> Result<(f64, f64), Self::Error>;
@@ -154,7 +154,7 @@ pub struct PausedReload<W, E> {
     /// frame the caller saw (see [`EpisodeClock::last_frame`]).
     pub last_frame: Option<(f64, f64)>,
     /// Why sync mode could not be entered, if it could not. The reload still happens -- the
-    /// scenario needs its town -- but acb may then have seen a later last frame than csb.
+    /// scenario needs its town -- but acb may then have seen a later last frame than swb.
     pub sync_error: Option<E>,
     /// Why the last frame could not be read, if it could not.
     pub read_error: Option<E>,
@@ -239,7 +239,7 @@ mod tests {
         }
     }
 
-    /// Measured live, 0.9.16 (2026-10-05): one old-episode frame after csb's snapshot, and
+    /// Measured live, 0.9.16 (2026-10-05): one old-episode frame after swb's snapshot, and
     /// the new world's first frame at `elapsed = delta`, both directions.
     #[test]
     fn frame_count_reproduces_the_frame_acbs_stream_ended_on() {

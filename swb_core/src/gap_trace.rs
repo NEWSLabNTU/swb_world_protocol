@@ -3,7 +3,7 @@
 //!
 //! One JSON Lines file per `Initialize`, `<gap_trace_dir>/<UTC time>_<episode>.jsonl`, in
 //! the format of `docs/design/gap-campaign.md`, appendix "Gap trace format" (schema 1). The
-//! reader is `csb_launch/scripts/gap_trace.py`; a test here writes a trace and parses it
+//! reader is `swb_launch/scripts/gap_trace.py`; a test here writes a trace and parses it
 //! with that reader.
 //!
 //! # What a frame line pairs
@@ -963,11 +963,11 @@ mod tests {
     }
 
     /// The format is the Python reader's: write a trace through the real writer thread and
-    /// parse it with `csb_launch/scripts/gap_trace.py`. Cross-language in one test, so a
+    /// parse it with `swb_launch/scripts/gap_trace.py`. Cross-language in one test, so a
     /// field renamed on either side fails here without a golden file to keep in step.
     #[test]
     fn a_written_trace_parses_with_the_python_reader() {
-        let dir = std::env::temp_dir().join(format!("csb-gap-trace-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("swb-gap-trace-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let mut t = GapTrace::new(Some(dir.clone()));
         t.begin_episode(2, "tracked", 1_791_683_599.572);
@@ -1018,7 +1018,7 @@ mod tests {
                 return;
             }
         };
-        let scripts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../csb_launch/scripts");
+        let scripts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../swb_launch/scripts");
         let script = r#"
 import sys
 sys.path.insert(0, sys.argv[1])

@@ -1,6 +1,6 @@
-"""The world protocol (`proto/csb_world.proto`, roadmaps 037, 046), Python side.
+"""The world protocol (`proto/swb_world.proto`, roadmaps 037, 046), Python side.
 
-The message classes are built at import from `csb_world.desc`, the descriptor set protoc
+The message classes are built at import from `swb_world.desc`, the descriptor set protoc
 writes for the .proto (`scripts/gen_world_proto.sh`), not from generated `_pb2` code: the
 host's protoc (3.12) writes `_pb2` files that Isaac's protobuf runtime (7.x) refuses, while
 a descriptor set reads the same in every runtime. `test_server` checks the file is current.
@@ -9,11 +9,11 @@ from pathlib import Path
 
 from google.protobuf import descriptor_pb2, descriptor_pool, message_factory
 
-# Bump with the bridge's `backend::remote::PROTOCOL_VERSION` and `csb_core::world_server`'s
+# Bump with the bridge's `backend::remote::PROTOCOL_VERSION` and `swb_core::world_server`'s
 # on any change a peer of the other version would misread.
 PROTOCOL_VERSION = 4
 
-DESCRIPTOR_SET = Path(__file__).with_name("csb_world.desc")
+DESCRIPTOR_SET = Path(__file__).with_name("swb_world.desc")
 
 
 def _load():
@@ -22,10 +22,10 @@ def _load():
     for f in files.file:
         pool.Add(f)
     names = [m.name for f in files.file for m in f.message_type]
-    classes = {n: message_factory.GetMessageClass(pool.FindMessageTypeByName(f"csb_world.{n}"))
+    classes = {n: message_factory.GetMessageClass(pool.FindMessageTypeByName(f"swb_world.{n}"))
                for n in names}
     enums = {e.name: {v.name: v.number
-                      for v in pool.FindEnumTypeByName(f"csb_world.{e.name}").values}
+                      for v in pool.FindEnumTypeByName(f"swb_world.{e.name}").values}
              for f in files.file for e in f.enum_type}
     return classes, enums
 

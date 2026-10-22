@@ -1,9 +1,9 @@
 //! Probe or check a world server over the world protocol (roadmap 046), whatever its
 //! simulator and language.
 //!
-//!     csb_world_check hello <endpoint> [--wait SECONDS] [--quiet]
-//!     csb_world_check conformance <endpoint> [--map <lanelet2_map.osm or map dir>]
-//!     csb_world_check rtt <endpoint> [--n 2000] [--gap-us 0]
+//!     swb_world_check hello <endpoint> [--wait SECONDS] [--quiet]
+//!     swb_world_check conformance <endpoint> [--map <lanelet2_map.osm or map dir>]
+//!     swb_world_check rtt <endpoint> [--n 2000] [--gap-us 0]
 //!
 //! `hello`: one probe `Hello` (changes nothing on the server: no ownership, no lease). Exit 0
 //! with the server's description when it answers within 2 s, 1 when it does not (not
@@ -25,8 +25,8 @@ use std::collections::BTreeSet;
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
-use csb_core::proto::csb_world as wire;
-use csb_core::world_client::{self, CallError, Client, PROTOCOL_VERSION};
+use swb_core::proto::swb_world as wire;
+use swb_core::world_client::{self, CallError, Client, PROTOCOL_VERSION};
 use wire::request::Request as Q;
 
 const TIMEOUT: Duration = Duration::from_secs(2);
@@ -35,9 +35,9 @@ const STEP: f64 = 0.05;
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage: csb_world_check hello <endpoint> [--wait SECONDS] [--quiet]\n       \
-         csb_world_check conformance <endpoint> [--map <lanelet2 map>]\n       \
-         csb_world_check rtt <endpoint> [--n N] [--gap-us US]"
+        "usage: swb_world_check hello <endpoint> [--wait SECONDS] [--quiet]\n       \
+         swb_world_check conformance <endpoint> [--map <lanelet2 map>]\n       \
+         swb_world_check rtt <endpoint> [--n N] [--gap-us US]"
     );
     ExitCode::from(2)
 }
@@ -338,7 +338,7 @@ fn conformance(endpoint: &str, map: Option<String>) -> ExitCode {
     let mut other = Client::connect_as(
         endpoint,
         wire::ClientId {
-            host: "csb-world-check-elsewhere".into(),
+            host: "swb-world-check-elsewhere".into(),
             pid: 4242,
             start_time: 1,
         },

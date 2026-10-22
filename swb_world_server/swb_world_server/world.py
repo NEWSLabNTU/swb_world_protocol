@@ -1,7 +1,7 @@
 """`World`: what a simulator implements to be driven over the world protocol (roadmap 046).
 
 Subclass it, set the class attributes, implement the core methods, and hand an instance to
-`csb_world_server.server.WorldServer` (or run `csb_world_server.server.run`). The shell does
+`swb_world_server.server.WorldServer` (or run `swb_world_server.server.run`). The shell does
 the protocol: versions, the owner lease, handles, validation, the clock, timing. A method
 raises to refuse; its message is the error the bridge passes on to SSv2.
 

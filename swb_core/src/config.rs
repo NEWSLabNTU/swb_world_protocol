@@ -161,7 +161,7 @@ impl Default for EgoConfig {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct TrafficManagerConfig {
-    /// TM port. csb runs the TM in its own process (LibCarla starts it on first use); a TM
+    /// TM port. swb runs the TM in its own process (LibCarla starts it on first use); a TM
     /// another client already serves on this port is used instead.
     pub port: u16,
     /// Seed for TM's random choices (lane changes, roaming turns), set at every
@@ -169,9 +169,9 @@ pub struct TrafficManagerConfig {
     pub seed: u64,
     /// Serve the TM for other clients too: start it with synchronous mode and keep it for
     /// the bridge's lifetime, even with no `simulator_autopilot` entity. Another process
-    /// that drives vehicles through the TM (a harness following csb's frames) connects to
-    /// `port` as a TM-Client; csb's `world.tick()` steps the TM once per tick, which a TM
-    /// hosted by a process that never ticks cannot have (`CSB_TM_SERVE=1` overrides).
+    /// that drives vehicles through the TM (a harness following swb's frames) connects to
+    /// `port` as a TM-Client; swb's `world.tick()` steps the TM once per tick, which a TM
+    /// hosted by a process that never ticks cannot have (`SWB_TM_SERVE=1` overrides).
     pub serve: bool,
 }
 
@@ -227,7 +227,7 @@ pub struct BridgeConfig {
     /// means on -- read it through [`BridgeConfig::collision_monitor_enabled`].
     pub collision_monitor: Option<bool>,
     /// Where each ego run's CARLA contacts are written for `physical_verdict` (roadmap 021):
-    /// unset = `$ROS_HOME/csb/contacts`, `off` = no reports, else that directory. Read it
+    /// unset = `$ROS_HOME/swb/contacts`, `off` = no reports, else that directory. Read it
     /// through [`BridgeConfig::contact_report_dir`].
     pub contact_report_dir: Option<String>,
     /// Give every tracked NPC vehicle a collision sensor of its own, so its contacts with
@@ -238,11 +238,11 @@ pub struct BridgeConfig {
     /// Traffic Manager for simulator-driven entities.
     pub traffic_manager: TrafficManagerConfig,
     /// The agent relay that entities with controller `agent` are driven through
-    /// (`tcp://host:port`; empty = the default). csb connects to it as a commander (see
+    /// (`tcp://host:port`; empty = the default). swb connects to it as a commander (see
     /// `agent_link`). Read it through [`BridgeConfig::agent_relay`].
     pub agent_relay: String,
     /// CARLA weather preset (`ClearNoon`, ...) applied on connect and after every map load;
-    /// empty leaves CARLA's (roadmap 018). `/carla/set_weather` replaces it at run time.
+    /// empty leaves CARLA's (roadmap 018). `/scenario_world_bridge/set_weather` replaces it at run time.
     pub weather: String,
     /// How SSv2-driven NPC vehicles and pedestrians move in CARLA (roadmap 023).
     pub npc_motion: NpcMotion,
@@ -250,8 +250,8 @@ pub struct BridgeConfig {
     /// trace (the default). Read it through [`BridgeConfig::gap_trace_dir`].
     pub gap_trace_dir: String,
     /// The tick gate's UDP address (`host:port`, [`crate::tick_gate`]): a process that
-    /// follows csb's frames and joins the gate is waited for before every tick. Empty (the
-    /// default) = no gate. `CSB_TICK_GATE` overrides.
+    /// follows swb's frames and joins the gate is waited for before every tick. Empty (the
+    /// default) = no gate. `SWB_TICK_GATE` overrides.
     pub tick_gate: String,
     /// How long one tick waits for the gate's follower at most (ms); unset = 1000.
     pub tick_gate_timeout_ms: Option<u64>,
@@ -588,14 +588,14 @@ impl BridgeConfig {
         if let Some(port) = env_port("SSV2_PORT") {
             self.ssv2.port = port;
         }
-        if let Ok(v) = std::env::var("CSB_TICK_GATE") {
+        if let Ok(v) = std::env::var("SWB_TICK_GATE") {
             self.tick_gate = v.trim().to_string();
         }
-        if let Ok(v) = std::env::var("CSB_TM_SERVE") {
+        if let Ok(v) = std::env::var("SWB_TM_SERVE") {
             match v.trim() {
                 "1" | "true" | "on" => self.traffic_manager.serve = true,
                 "0" | "false" | "off" | "" => self.traffic_manager.serve = false,
-                other => tracing::warn!("Ignoring CSB_TM_SERVE='{other}': not 0/1"),
+                other => tracing::warn!("Ignoring SWB_TM_SERVE='{other}': not 0/1"),
             }
         }
         if std::env::var("CSB_BACKGROUND_AVS").is_ok_and(|v| !v.trim().is_empty()) {
@@ -1055,7 +1055,7 @@ mod tests {
         let dir = BridgeConfig::default()
             .contact_report_dir()
             .expect("default is on");
-        assert!(dir.ends_with("csb/contacts"), "{}", dir.display());
+        assert!(dir.ends_with("swb/contacts"), "{}", dir.display());
         let off: BridgeConfig = serde_yaml::from_str("contact_report_dir: \"off\"\n").unwrap();
         assert_eq!(off.contact_report_dir(), None);
 

@@ -8,7 +8,7 @@
 //! back into replies.
 //!
 //! Since roadmap 046 the bridge has one implementation, `RemoteBackend`, which speaks the
-//! world protocol (`proto/csb_world.proto`) to a simulator's world server; a world server may
+//! world protocol (`proto/swb_world.proto`) to a simulator's world server; a world server may
 //! use these types inside (the CARLA one does). [`crate::fake`] is the in-memory one the
 //! coordinator's tests run on.
 //!
@@ -163,7 +163,7 @@ pub enum Sensor {
     PseudoTrafficLightDetector,
 }
 
-/// A simulator csb drives SSv2 scenarios on. One per csb process, used from the thread that
+/// A simulator swb drives SSv2 scenarios on. One per swb process, used from the thread that
 /// serves SSv2 (`zmq_server`).
 pub trait SimBackend {
     /// Once, after connecting and before the first request: apply the world state the
@@ -199,10 +199,10 @@ pub trait SimBackend {
     /// `Attach*Sensor`.
     fn attach_sensor(&mut self, sensor: Sensor) -> Result<(), BackendError>;
 
-    /// `/carla/get_weather` (the world services).
+    /// `/scenario_world_bridge/get_weather` (the world services).
     fn get_weather(&mut self) -> WeatherReply;
 
-    /// `/carla/set_weather`.
+    /// `/scenario_world_bridge/set_weather`.
     fn set_weather(&mut self, request: WeatherRequest) -> WeatherReply;
 
     /// Entities SSv2 currently has spawned.

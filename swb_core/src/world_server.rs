@@ -1,8 +1,8 @@
 //! The world protocol's server shell in Rust (roadmap 046): a [`World`] behind a REP socket.
 //!
-//! The Rust twin of the Python shell `csb_world_server`, for a simulator with a Rust or C++
+//! The Rust twin of the Python shell `swb_world_server`, for a simulator with a Rust or C++
 //! client (the CARLA world server). The shell owns the protocol so a world does not have to:
-//! the version check, the owner lease (one bridge at a time; `proto/csb_world.proto`,
+//! the version check, the owner lease (one bridge at a time; `proto/swb_world.proto`,
 //! "Ownership"), handles, request validation against the declared capabilities, and the
 //! process's end. A [`World`] method returns a [`Refusal`] to say no; its text is what the
 //! bridge passes on to SSv2.
@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 
 use prost::Message;
 
-use crate::proto::csb_world as wire;
+use crate::proto::swb_world as wire;
 use crate::world_client::{describe, is_gone, PROTOCOL_VERSION};
 
 /// How long an owner may say nothing before another client may take the server over. The

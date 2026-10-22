@@ -2,7 +2,7 @@
 //! `simulator_autopilot` (roadmap 017 step 6, docs/design/user-workflow.md "Background
 //! vehicles").
 //!
-//! SSv2 runs no behavior for such an entity. csb spawns it with physics on, hands it to
+//! SSv2 runs no behavior for such an entity. swb spawns it with physics on, hands it to
 //! CARLA's Traffic Manager (TM) once SSv2 starts its NPC logic, returns CARLA's pose in
 //! `UpdateEntityStatus`, and turns the scenario's goals (`UpdateEntityGoal`) into a TM path.
 //!
@@ -10,9 +10,9 @@
 //! junction the branch whose next point is closest, which takes the wrong turn whenever the
 //! closest branch is not the one that leads to the goal (measured on Town01: one goal in
 //! four missed with the goal alone as the path; dense points every 10 m also missed one).
-//! So csb plans the lane route itself on CARLA's road topology ([`RoadGraph`]) and gives TM
+//! So swb plans the lane route itself on CARLA's road topology ([`RoadGraph`]) and gives TM
 //! one point just past every junction the route crosses, then the goal ([`RoadGraph::tm_path`]);
-//! with that, every probed route arrived. TM leaves the path at its end and roams, so csb
+//! with that, every probed route arrived. TM leaves the path at its end and roams, so swb
 //! also brings the vehicle to a stop at the goal ([`approach_speed`], [`ARRIVE_DISTANCE`]).
 //!
 //! Everything here is plain geometry and graph search, testable without CARLA; the CARLA
@@ -40,7 +40,7 @@ pub const ARRIVE_DISTANCE: f64 = 0.5;
 /// [m/s]; until then TM is asked to stop it.
 pub const PARK_SPEED: f64 = 0.1;
 
-/// Deceleration csb plans the stop at the goal with [m/s^2]: comfortable, and inside every
+/// Deceleration swb plans the stop at the goal with [m/s^2]: comfortable, and inside every
 /// performance bound a scenario is likely to declare.
 pub const APPROACH_DECELERATION: f64 = 1.5;
 
@@ -48,7 +48,7 @@ pub const APPROACH_DECELERATION: f64 = 1.5;
 /// controller stops the vehicle outright, short of the goal.
 const APPROACH_MIN_SPEED: f64 = 1.0;
 
-/// What to do with csb's Traffic Manager (roadmap 034 step 1).
+/// What to do with swb's Traffic Manager (roadmap 034 step 1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TmAction {
     Keep,
@@ -61,7 +61,7 @@ pub enum TmAction {
 /// "What the CARLA source says" 1-2); with no TM registered that tick loops over nothing.
 /// So the TM goes when the last `simulator_autopilot` entity does -- at `Initialize`, after
 /// the previous run's are torn down, and at the despawn of the last one -- and the next
-/// such spawn creates it again (~4 s). csb cannot know at `Initialize` whether the coming
+/// such spawn creates it again (~4 s). swb cannot know at `Initialize` whether the coming
 /// scenario has one; nothing is lost by asking that of its first spawn instead.
 pub fn traffic_manager_action(running: bool, autopilot_entities: usize) -> TmAction {
     if running && autopilot_entities == 0 {
