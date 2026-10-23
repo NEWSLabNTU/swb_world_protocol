@@ -59,8 +59,9 @@ class World:
         """One body: `kind` ``EGO``, ``VEHICLE``, ``PEDESTRIAN`` or ``MISC_OBJECT``; the box
         `center` (from the entity origin) and `dims`; `motion` ``KINEMATIC``, ``TRACKED``
         (`TRACKED_MOTION`) or ``EXTERNAL`` (the ego). May return a dict for the reply's
-        `Body` (``model``, ``box_location``, ``box_extent``, ``origin_offset``); None: the
-        declared box at the entity origin."""
+        `Body` (``model``, ``box_location``, ``box_extent``, ``origin_offset``, ``wheels``:
+        ``(front_x, rear_x, track, radius)`` in the entity frame, for a vehicle whose wheels
+        the world knows); None: the declared box at the entity origin."""
         raise NotImplementedError
 
     def despawn(self, handle):

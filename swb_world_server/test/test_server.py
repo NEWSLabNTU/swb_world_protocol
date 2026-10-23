@@ -46,6 +46,8 @@ class FakeWorld(World):
     def spawn(self, handle, name, kind, subtype, center, dims, pose, model="", motion="KINEMATIC"):
         self.bodies[handle] = {"name": name, "kind": kind, "pose": pose, "dims": dims,
                                "model": model, "motion": motion, "twist": None}
+        if kind == "EGO":  # the car it built, wheels in the entity frame (roadmap 051)
+            return {"model": "fake:car", "wheels": (3.0, 0.0, 1.6, 0.35)}
 
     def despawn(self, handle):
         del self.bodies[handle]
@@ -153,9 +155,14 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(r.load_world.sim_time_ns, 0)
         r = spawn(self.server, "ego", "EGO", 0.0, motion="EXTERNAL")
         ego = r.spawn.handle
-        self.assertEqual(r.spawn.body.model, "fake:box")
+        self.assertEqual(r.spawn.body.model, "fake:car")
         self.assertAlmostEqual(r.spawn.body.box_extent.x, 2.25)
-        npc = spawn(self.server, "npc", "VEHICLE", -10.0).spawn.handle
+        w = r.spawn.body.wheels
+        self.assertEqual((w.front_x, w.rear_x, w.track, w.radius), (3.0, 0.0, 1.6, 0.35))
+        r = spawn(self.server, "npc", "VEHICLE", -10.0)
+        self.assertEqual(r.spawn.body.model, "fake:box")
+        self.assertFalse(r.spawn.body.HasField("wheels"))
+        npc = r.spawn.handle
         self.assertEqual((ego, npc), (1, 2))
         self.assertEqual(self.world.bodies[ego]["dims"], (4.5, 2.1, 1.8))
         r = step(self.server, pb.EntityPose(handle=npc, pose=pb.make_pose((-0.5, 0, 0), (1, 0, 0, 0))),

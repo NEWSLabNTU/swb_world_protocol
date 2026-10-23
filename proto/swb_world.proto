@@ -265,6 +265,21 @@ message Body {
   // height, all 0 when none was declared).
   Vec3 declared_center = 9;
   Vec3 declared_dimensions = 10;
+  // A vehicle body's wheels as the server knows them (measured on its body, or the vehicle it
+  // built), in the entity frame; unset when it does not know them (roadmap 051). The bridge
+  // refuses an ego whose wheels or box are more than 2 cm from what SSv2 declared (the
+  // vehicle catalog's).
+  Wheels wheels = 11;
+}
+
+message Wheels {
+  // The front and rear axles' x from the entity origin, m (the rear is 0 when the body's
+  // rear axle is the entity origin, as SSv2's vehicle origin is).
+  double front_x = 1;
+  double rear_x = 2;
+  // Left to right wheel centre, and the wheel radius, m.
+  double track = 3;
+  double radius = 4;
 }
 
 message SpawnReply {

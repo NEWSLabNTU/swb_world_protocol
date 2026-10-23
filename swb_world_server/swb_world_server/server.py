@@ -233,6 +233,10 @@ class WorldServer:
             box_extent=vec(body.get("box_extent", (d.x / 2, d.y / 2, d.z / 2))), has_box=True,
             origin_offset=vec(body.get("origin_offset", (0.0, 0.0, 0.0))),
             declared_center=vec((c.x, c.y, c.z)), declared_dimensions=vec((d.x, d.y, d.z))))
+        if body.get("wheels"):
+            front_x, rear_x, track, radius = body["wheels"]
+            reply.body.wheels.CopyFrom(pb.Wheels(front_x=front_x, rear_x=rear_x, track=track,
+                                                 radius=radius))
         return pb.Reply(ok=True, spawn=reply)
 
     def step_summary(self):

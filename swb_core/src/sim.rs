@@ -100,9 +100,23 @@ pub enum EntityKind {
         axles: Option<(f64, f64)>,
         /// Declared `(maxAcceleration, maxDeceleration)`, m/s2.
         performance: Option<(f64, f64)>,
+        /// The declared wheels, when SSv2 declared both axles.
+        wheels: Option<Wheels>,
     },
     Pedestrian,
     MiscObject,
+}
+
+/// A vehicle's wheels in its entity frame (x forward from the entity origin, which for SSv2 is
+/// the rear axle on the ground), m: what SSv2 declares and what a world server measured on its
+/// body (the world protocol's `Wheels`, roadmap 051).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Wheels {
+    pub front_x: f64,
+    pub rear_x: f64,
+    /// Left to right wheel centre.
+    pub track: f64,
+    pub radius: f64,
 }
 
 /// One entity to spawn, as SSv2 declares it.
