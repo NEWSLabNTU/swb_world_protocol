@@ -23,7 +23,10 @@ impl World for Fake {
     }
     fn load_world(&mut self, _r: &wire::LoadWorld) -> WorldResult<wire::LoadWorldReply> {
         self.spawned.clear();
-        Ok(wire::LoadWorldReply { sim_time_ns: 7 })
+        Ok(wire::LoadWorldReply {
+            sim_time_ns: 7,
+            episode_id: 1,
+        })
     }
     fn spawn(&mut self, handle: u32, _r: &wire::Spawn) -> WorldResult<wire::Body> {
         self.spawned.push(handle);

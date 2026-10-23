@@ -156,8 +156,13 @@ message LoadWorld {
 }
 
 message LoadWorldReply {
-  // The simulation time the first step starts from, ns; monotonic over the server's life.
+  // The simulation time the first step starts from, ns: nanos(elapsed) + BASE_NS (swb_core
+  // sim_time), monotonic within the episode. Across episodes it may start again.
   int64 sim_time_ns = 1;
+  // The episode this load began (CARLA: its world id): nonzero, and different from the last
+  // one whenever the world was loaded anew. Every vehicle stack ends at an episode change
+  // (roadmap 051).
+  uint64 episode_id = 2;
 }
 
 // One traffic light of the map: a Lanelet2 traffic light way and the lamp that shows it.
@@ -415,7 +420,7 @@ message Contact {
 }
 
 message StepReply {
-  // Simulation time after the step, s: monotonic over the server's lifetime.
+  // Simulation time after the step, s: monotonic within the episode.
   double sim_time = 1;
   // The server's frame counter after the step.
   uint64 frame = 2;
@@ -425,6 +430,8 @@ message StepReply {
   int64 sim_time_ns = 5;
   // Time the server spent stepping the simulator, s, for the bridge's frame budget.
   double tick_seconds = 6;
+  // The episode the step is in (LoadWorldReply's); 0 from a server that does not say.
+  uint64 episode_id = 7;
 }
 
 // SSv2's `UpdateStepTime`.

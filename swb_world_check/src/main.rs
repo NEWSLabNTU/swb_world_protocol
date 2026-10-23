@@ -415,16 +415,33 @@ fn conformance(endpoint: &str, map: Option<String>) -> ExitCode {
             ..Default::default()
         })
     };
-    let t0 = match call(&mut c, load(), LOAD_TIMEOUT) {
+    let (t0, episode0) = match call(&mut c, load(), LOAD_TIMEOUT) {
         Ok(wire::Reply {
             reply: Some(wire::reply::Reply::LoadWorld(l)),
             ..
         }) => {
             r.check(
                 "load a world",
-                Ok(format!("time {:.3} s", l.sim_time_ns as f64 / 1e9)),
+                Ok(format!(
+                    "time {:.3} s, episode {}",
+                    l.sim_time_ns as f64 / 1e9,
+                    l.episode_id
+                )),
             );
-            l.sim_time_ns
+            // Roadmap 051: sim_time_ns = nanos(elapsed) + BASE_NS, and a load names its
+            // episode.
+            r.check(
+                "the time is past BASE_NS and the episode named",
+                if l.sim_time_ns >= swb_core::sim_time::BASE_NS && l.episode_id != 0 {
+                    Ok(String::new())
+                } else {
+                    Err(format!(
+                        "time {} ns, episode {}",
+                        l.sim_time_ns, l.episode_id
+                    ))
+                },
+            );
+            (l.sim_time_ns, l.episode_id)
         }
         Ok(other) => {
             r.check("load a world", Err(format!("answered {other:?}")));
@@ -769,11 +786,16 @@ fn conformance(endpoint: &str, map: Option<String>) -> ExitCode {
             reply: Some(wire::reply::Reply::LoadWorld(l)),
             ..
         }) => r.check(
-            "time goes on across a load",
-            if l.sim_time_ns >= last_ns {
+            // The same world again is the same episode, and its time goes on; another
+            // episode may start its time again (roadmap 051).
+            "the same world again: the same episode, time going on",
+            if l.episode_id == episode0 && l.sim_time_ns >= last_ns {
                 Ok(String::new())
             } else {
-                Err(format!("{} after {last_ns}", l.sim_time_ns))
+                Err(format!(
+                    "episode {} after {episode0}, time {} after {last_ns}",
+                    l.episode_id, l.sim_time_ns
+                ))
             },
         ),
         other => r.check("load the world again", Err(format!("{other:?}"))),

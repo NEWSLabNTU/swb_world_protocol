@@ -13,6 +13,21 @@ from google.protobuf import descriptor_pb2, descriptor_pool, message_factory
 # on any change a peer of the other version would misread.
 PROTOCOL_VERSION = 4
 
+# Simulation time (roadmap 051): sim_ns = nanos(seconds) + BASE_NS, as swb_core's sim_time.
+BASE_NS = 1_000_000_000_000
+
+
+def nanos(secs):
+    """Seconds to integer ns, rounding half away from zero as Rust's f64::round (Python's
+    round() rounds half to even, 1 ns apart on ~1.4 % of CARLA frames)."""
+    import math
+
+    return int(math.copysign(math.floor(abs(secs) * 1e9 + 0.5), secs))
+
+
+def sim_ns(secs):
+    return nanos(secs) + BASE_NS
+
 DESCRIPTOR_SET = Path(__file__).with_name("swb_world.desc")
 
 

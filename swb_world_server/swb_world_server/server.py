@@ -92,6 +92,8 @@ class WorldServer:
         self.pending = {}  # handle -> Drive, from the last Apply
         self.sim_time = 0.0
         self.frame = 0
+        self.episode_id = 0  # 0 until the first LoadWorld (roadmap 051)
+        self.loaded_world = None
         self.stopped = False
         self.step_ms = []  # wall time of each step since the last summary (038)
 
@@ -197,9 +199,14 @@ class WorldServer:
         self.world.load(req.world, list(req.ground_paths), signals, request=req)
         self.entities.clear()
         self.pending.clear()
-        log.info("world %s loaded", req.world or "(default)")
+        # A new episode when the world changes (roadmap 051); this server's time keeps
+        # running across them, which nothing may depend on.
+        if self.episode_id == 0 or req.world != self.loaded_world:
+            self.episode_id += 1
+            self.loaded_world = req.world
+        log.info("world %s loaded, episode %d", req.world or "(default)", self.episode_id)
         return pb.Reply(ok=True, load_world=pb.LoadWorldReply(
-            sim_time_ns=round(self.sim_time * 1e9)))
+            sim_time_ns=pb.sim_ns(self.sim_time), episode_id=self.episode_id))
 
     def _spawn(self, req):
         if req.name in self.entities.values():
@@ -284,7 +291,8 @@ class WorldServer:
         self.step_ms.append(1e3 * elapsed)
         self.sim_time += req.substeps * req.dt
         self.frame += 1
-        reply = pb.StepReply(sim_time=self.sim_time, frame=self.frame, tick_seconds=elapsed)
+        reply = pb.StepReply(sim_time=self.sim_time, frame=self.frame, tick_seconds=elapsed,
+                             sim_time_ns=pb.sim_ns(self.sim_time), episode_id=self.episode_id)
         for handle, pose, twist in states:
             state = reply.states.add(handle=handle, pose=pb.make_pose(*pose))
             if twist is not None:

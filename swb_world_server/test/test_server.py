@@ -152,7 +152,8 @@ class ServerTest(unittest.TestCase):
         hello(self.server)
         r = call(self.server, load_world=pb.LoadWorld())
         self.assertTrue(r.ok)
-        self.assertEqual(r.load_world.sim_time_ns, 0)
+        self.assertEqual(r.load_world.sim_time_ns, pb.BASE_NS)
+        self.assertEqual(r.load_world.episode_id, 1)
         r = spawn(self.server, "ego", "EGO", 0.0, motion="EXTERNAL")
         ego = r.spawn.handle
         self.assertEqual(r.spawn.body.model, "fake:car")
@@ -350,11 +351,17 @@ class ServerTest(unittest.TestCase):
         call(self.server, step=pb.Step(substeps=2, dt=0.025))
         r = call(self.server, load_world=pb.LoadWorld(world="/maps/x.usd",
                                                       ground_paths=["/World/env/road"]))
-        self.assertEqual(r.load_world.sim_time_ns, 50_000_000)
+        self.assertEqual(r.load_world.sim_time_ns, pb.BASE_NS + 50_000_000)
+        # Another world: another episode (roadmap 051); the same world again: the same one.
+        self.assertEqual(r.load_world.episode_id, 2)
         self.assertEqual(self.world.loads[-1], ("/maps/x.usd", ["/World/env/road"]))
         r = call(self.server, step=pb.Step(substeps=2, dt=0.025))
         self.assertEqual(len(r.step.states), 0)
         self.assertAlmostEqual(r.step.sim_time, 0.1)
+        self.assertEqual((r.step.sim_time_ns, r.step.episode_id), (pb.BASE_NS + 100_000_000, 2))
+        r = call(self.server, load_world=pb.LoadWorld(world="/maps/x.usd",
+                                                      ground_paths=["/World/env/road"]))
+        self.assertEqual(r.load_world.episode_id, 2)
         # Handles stay unique over the server's lifetime.
         self.assertEqual(spawn(self.server, "npc", "VEHICLE", 0.0).spawn.handle, 2)
 
