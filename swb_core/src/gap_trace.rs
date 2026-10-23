@@ -1018,7 +1018,12 @@ mod tests {
                 return;
             }
         };
-        let scripts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../swb_launch/scripts");
+        // The reader is the scenario bridge's (its gap oracle's); its `just test` points
+        // SWB_GAP_TRACE_READER_DIR at it. Built on its own, this repository has no reader.
+        let Some(scripts) = std::env::var_os("SWB_GAP_TRACE_READER_DIR").map(PathBuf::from) else {
+            eprintln!("SKIPPED: SWB_GAP_TRACE_READER_DIR unset; the trace was not checked against gap_trace.py");
+            return;
+        };
         let script = r#"
 import sys
 sys.path.insert(0, sys.argv[1])

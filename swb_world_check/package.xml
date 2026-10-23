@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>swb_world_check</name>
+  <version>0.1.0</version>
+  <description>Probe or conformance-check any world server over the world protocol (roadmap 046)</description>
+  <maintainer email="maintainer@example.com">Maintainer</maintainer>
+  <license>Apache-2.0</license>
+
+  <!-- protoc for swb_core's prost-build, libzmq for the zmq crate. -->
+  <build_depend>protobuf-dev</build_depend>
+  <depend>libzmq3-dev</depend>
+
+  <export>
+    <build_type>ament_cargo</build_type>
+  </export>
+</package>

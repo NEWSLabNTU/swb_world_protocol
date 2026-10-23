@@ -1,0 +1,8 @@
+# Cargo and colcon
+target/
+build/
+install/
+log/
+# Python
+__pycache__/
+*.py[oc]

@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = ["swb_core", "swb_world_check"]
+
+[profile.dev-release]
+inherits = "release"
+debug = true
+debug-assertions = true

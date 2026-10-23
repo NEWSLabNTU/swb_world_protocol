@@ -453,7 +453,7 @@ class LifetimeTest(unittest.TestCase):
 class DescriptorTest(unittest.TestCase):
     @unittest.skipUnless(shutil.which("protoc"), "no protoc")
     def test_the_descriptor_set_is_the_protos(self):
-        root = Path(__file__).resolve().parents[3]
+        root = Path(__file__).resolve().parents[2]
         with tempfile.TemporaryDirectory() as d:
             out = Path(d) / "swb_world.desc"
             subprocess.run(["protoc", f"--proto_path={root / 'proto'}",
