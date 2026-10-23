@@ -291,8 +291,9 @@ class WorldServer:
         self.step_ms.append(1e3 * elapsed)
         self.sim_time += req.substeps * req.dt
         self.frame += 1
-        reply = pb.StepReply(sim_time=self.sim_time, frame=self.frame, tick_seconds=elapsed,
-                             sim_time_ns=pb.sim_ns(self.sim_time), episode_id=self.episode_id)
+        now_ns = pb.sim_ns(self.sim_time)
+        reply = pb.StepReply(sim_time=now_ns / 1e9, frame=self.frame, tick_seconds=elapsed,
+                             sim_time_ns=now_ns, episode_id=self.episode_id)
         for handle, pose, twist in states:
             state = reply.states.add(handle=handle, pose=pb.make_pose(*pose))
             if twist is not None:
@@ -314,11 +315,32 @@ class WorldServer:
     def _set_goal(self, _req):
         raise RequestError("goals are not offered by this server (no AUTOPILOT)")
 
-    def _set_weather(self, _req):
-        raise RequestError("weather is not offered by this server")
+    def _set_weather(self, req):
+        if not self.offers("WEATHER"):
+            raise RequestError("weather is not offered by this server")
+        w = req.weather
+        if w.use_parameters and w.parameters:
+            preset, parameters = "", dict(w.parameters)
+        elif not w.use_parameters and w.preset.strip():
+            preset, parameters = w.preset.strip(), {}
+        else:
+            raise RequestError("give a preset, or parameters by name")
+        try:
+            now = self.world.set_weather(preset, parameters)
+        except ValueError as e:
+            return pb.Reply(ok=True, weather=pb.WeatherReply(success=False, message=str(e)))
+        return pb.Reply(ok=True, weather=self._weather_reply(now, "applied"))
 
     def _get_weather(self, _req):
-        raise RequestError("weather is not offered by this server")
+        if not self.offers("WEATHER"):
+            raise RequestError("weather is not offered by this server")
+        return pb.Reply(ok=True, weather=self._weather_reply(self.world.get_weather(), ""))
+
+    @staticmethod
+    def _weather_reply(now, message):
+        preset, parameters = now
+        return pb.WeatherReply(success=True, message=message, weather=pb.Weather(
+            preset=preset, parameters=dict(parameters), use_parameters=True))
 
     def _set_road_condition(self, req):
         if not self.offers("ROAD_CONDITION"):

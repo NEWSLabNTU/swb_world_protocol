@@ -12,7 +12,7 @@ fn main() -> Result<()> {
         format!("{proto_dir}/autoware_vehicle_msgs.proto"),
         format!("{proto_dir}/rosgraph_msgs.proto"),
         format!("{proto_dir}/std_msgs.proto"),
-        // swb's own: the Isaac world server's protocol (roadmap 037).
+        // The world protocol (roadmaps 037, 046): bridge <-> world servers.
         format!("{proto_dir}/swb_world.proto"),
     ];
 

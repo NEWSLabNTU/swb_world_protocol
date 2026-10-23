@@ -170,7 +170,7 @@ class ServerTest(unittest.TestCase):
         r = step(self.server, pb.EntityPose(handle=npc, pose=pb.make_pose((-0.5, 0, 0), (1, 0, 0, 0))),
                  pb.EntityPose(handle=ego), render=True)
         self.assertTrue(r.ok, r.error)
-        self.assertAlmostEqual(r.step.sim_time, 0.05)
+        self.assertAlmostEqual(r.step.sim_time, 1000.05)
         self.assertEqual(r.step.frame, 1)
         # An EXTERNAL body is listed with no drive: the step does not touch it.
         self.assertEqual(set(self.world.steps[-1][0]), {npc})
@@ -357,7 +357,7 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(self.world.loads[-1], ("/maps/x.usd", ["/World/env/road"]))
         r = call(self.server, step=pb.Step(substeps=2, dt=0.025))
         self.assertEqual(len(r.step.states), 0)
-        self.assertAlmostEqual(r.step.sim_time, 0.1)
+        self.assertAlmostEqual(r.step.sim_time, 1000.1)
         self.assertEqual((r.step.sim_time_ns, r.step.episode_id), (pb.BASE_NS + 100_000_000, 2))
         r = call(self.server, load_world=pb.LoadWorld(world="/maps/x.usd",
                                                       ground_paths=["/World/env/road"]))
@@ -382,6 +382,56 @@ class ServerTest(unittest.TestCase):
         hello(self.server)
         self.assertTrue(call(self.server, shutdown=pb.Shutdown()).ok)
         self.assertTrue(self.server.stopped)
+
+
+class WeatherTest(unittest.TestCase):
+    """`WEATHER` on the Python shell: a preset or parameters by the world's names (roadmap 051)."""
+
+    class World(FakeWorld):
+        capabilities = ("WEATHER",)
+        PRESETS = {"Sunny": {"cloud": 0.0, "rain": 0.0}}
+
+        def __init__(self):
+            super().__init__()
+            self.weather = ("", {"cloud": 50.0, "rain": 0.0})
+
+        def set_weather(self, preset, parameters):
+            if preset:
+                if preset not in self.PRESETS:
+                    raise ValueError(f"unknown preset {preset!r}; one of: Sunny")
+                self.weather = (preset, dict(self.PRESETS[preset]))
+            else:
+                unknown = set(parameters) - set(self.weather[1])
+                if unknown:
+                    raise ValueError(f"unknown parameter(s) {sorted(unknown)}; these: cloud, rain")
+                self.weather = ("", {**self.weather[1], **parameters})
+            return self.weather
+
+        def get_weather(self):
+            return self.weather
+
+    def setUp(self):
+        self.server = WorldServer(self.World(), clock=Clock())
+        hello(self.server)
+
+    def test_a_preset_and_parameters_reach_the_world(self):
+        r = call(self.server, set_weather=pb.SetWeather(weather=pb.Weather(preset="Sunny")))
+        self.assertTrue(r.ok and r.weather.success)
+        self.assertEqual(r.weather.weather.preset, "Sunny")
+        r = call(self.server, set_weather=pb.SetWeather(weather=pb.Weather(
+            parameters={"rain": 3.0}, use_parameters=True)))
+        self.assertEqual(dict(r.weather.weather.parameters), {"cloud": 0.0, "rain": 3.0})
+        r = call(self.server, get_weather=pb.GetWeather())
+        self.assertEqual(dict(r.weather.weather.parameters)["rain"], 3.0)
+
+    def test_an_unknown_name_fails_and_an_empty_request_is_refused(self):
+        r = call(self.server, set_weather=pb.SetWeather(weather=pb.Weather(preset="Hail")))
+        self.assertTrue(r.ok)
+        self.assertFalse(r.weather.success)
+        self.assertIn("unknown preset 'Hail'", r.weather.message)
+        r = call(self.server, set_weather=pb.SetWeather(weather=pb.Weather()))
+        self.assertFalse(r.ok)
+        self.assertIn("give a preset", r.error)
 
 
 class LeaseTest(unittest.TestCase):

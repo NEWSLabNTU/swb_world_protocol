@@ -97,6 +97,19 @@ class World:
         nothing then. `load` and `reset` go back to the world's own."""
         raise NotImplementedError("this simulator has no weather or time of day")
 
+    def set_weather(self, preset, parameters):
+        """`WEATHER`: a preset by this simulator's name for it (non-empty: it wins), or
+        `parameters` by name ({name: value}; those not named keep their values). Keep it, and
+        apply it again after every `load`. Return the weather now, as `get_weather` does. Raise
+        ValueError, naming the valid presets or parameters, for an unknown one, and change
+        nothing then."""
+        raise NotImplementedError("this simulator has no weather service")
+
+    def get_weather(self):
+        """`WEATHER`: the weather now, `(preset, {name: value})`: the preset it matches ("" if
+        none) and every parameter, by this simulator's names."""
+        raise NotImplementedError("this simulator has no weather service")
+
     def reset(self, handles):
         """A new owner, or the old one released the world: every entity goes. The world
         stays loaded."""

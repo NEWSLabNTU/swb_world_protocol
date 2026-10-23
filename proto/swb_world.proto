@@ -1,7 +1,7 @@
 // The world protocol (roadmaps 037, 046): the one interface between the scenario bridge
 // (`RemoteBackend`, REQ) and a simulator's world server (REP): the Isaac Sim world server
-// (`src/isaac_world`, on the Python shell `swb_world_server`) and the CARLA world server
-// (`src/carla_world`, on the Rust shell `swb_core::world_server`). ZMQ, one Request and one
+// (`swb_isaac_world`, on the Python shell `swb_world_server`) and the CARLA world server
+// (`swb_carla_world`, on the Rust shell `swb_core::world_server`). ZMQ, one Request and one
 // Reply per round trip.
 //
 // Frames: the server's world frame is right-handed and Z-up, metres and radians (ROS's); the
@@ -420,13 +420,15 @@ message Contact {
 }
 
 message StepReply {
-  // Simulation time after the step, s: monotonic within the episode.
+  // Simulation time after the step, s: `sim_time_ns` / 1e9 (BASE_NS included), monotonic
+  // within the episode.
   double sim_time = 1;
   // The server's frame counter after the step.
   uint64 frame = 2;
   repeated EntityState states = 3;
   repeated Contact contacts = 4;
-  // The simulation time in ns, when the server keeps it so (exact); 0: from `sim_time`.
+  // The simulation time in ns, nanos(elapsed) + BASE_NS (swb_core sim_time): required, the
+  // time SSv2 and every vehicle bridge agree on to the nanosecond.
   int64 sim_time_ns = 5;
   // Time the server spent stepping the simulator, s, for the bridge's frame budget.
   double tick_seconds = 6;
