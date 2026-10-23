@@ -718,3 +718,19 @@ dependencies = [
  "system-deps",
  "zeromq-src",
 ]
+
+[[patch.unused]]
+name = "builtin_interfaces"
+version = "0.0.0"
+
+[[patch.unused]]
+name = "rcl_interfaces"
+version = "0.0.0"
+
+[[patch.unused]]
+name = "rmw_dds_common"
+version = "0.0.0"
+
+[[patch.unused]]
+name = "swb_interfaces"
+version = "0.0.0"
