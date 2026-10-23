@@ -746,8 +746,7 @@ fn run_worker(relay: &str, shared: &(Mutex<Shared>, Condvar)) {
 
 /// Role names swb gave agent-driven vehicles, kept across swb processes so a bridge that
 /// died does not leave them for ever: their role is the entity name (that is how the vehicle
-/// side finds them), so unlike other entities they carry no `swb_entity:` mark. On tmpfs,
-/// beside the episode clock (`clock_store`).
+/// side finds them), so unlike other entities they carry no `swb_entity:` mark. On tmpfs.
 pub fn ledger_path(host: &str, port: u16) -> PathBuf {
     let base = std::env::var_os("XDG_RUNTIME_DIR")
         .map(PathBuf::from)
