@@ -101,6 +101,50 @@ A vehicle server that builds the ego from a sim_vehicle_spec spec should return 
 and `spec_hash`, so the bridge's spawn and start checks can see the car (see
 [world-protocol.md](world-protocol.md), "Spawn").
 
+### What the shell hands the world
+
+The shapes the Python shell passes, for what the table above leaves to the docstrings:
+
+- **`load(world, ground_paths, signals, request)`**: `world` is `LoadWorld.world`, which the
+  bridge fills from `<map dir>/<simulator_name>/world.yaml` (`world:`, a path relative to the
+  map directory or absolute, or a name your server knows; `ground_paths:`, prims bodies rest
+  on; `map_origin:`, where your world's origin sits in the map frame). No such file, or an
+  empty `world:`: `world` is `""`, your default world. `signals` comes from the Lanelet2
+  map's traffic lights, only under `SIGNALS`. `request` is the whole `LoadWorld` (its
+  `lanelet2_map_path`, `map_dir`, `map_origin`, `step_time`, ...). The conformance check
+  sends `lanelet2_map_path`/`map_dir` from `--map` and no `world`, so its signal check sends
+  an empty `SetSignals`.
+- **`spawn(...)`** receives the name, kind, subtype, the declared box, the pose, the model
+  and the motion; the rest of the `Spawn` request (`role_name`, axles, performance,
+  `asset_key`) does not reach a Python world. A server that needs them needs the Rust
+  shell, or an extension of this one.
+- **`step(drives, ...)`**: `drives` is `{handle: Drive}` for the handles an `Apply` named
+  since the last step; a handle not named is not in it (keep its last motion yourself if you
+  want one). `Drive` is a named tuple: `pose` (`((x, y, z), (qw, qx, qy, qz))`) or `None`,
+  `twist` (`((vx, vy, vz), (wx, wy, wz))`, world frame; `wz` the yaw rate) or `None`,
+  `teleport` and `kinematic`, plain bools.
+- **`set_road_condition(friction_scale, wetness, properties)`**: `friction_scale` a float
+  (1: as the map is); `wetness` one of OpenSCENARIO's levels as the scenario spells them (`"dry"`,
+  `"moist"`, `"wetWithPuddles"`, `"lowFlooded"`, `"highFlooded"`; `"dry"` when not given); `properties` a dict
+  of str to str, the scenario's `swb.` properties, e.g.
+  `{"swb.zone.<zone>.class": "ice"}` for a zone your world defines (refuse a zone it does
+  not have, by name, with `ValueError`).
+- **`set_environment(weather, time_of_day, sim_time)`**: each argument holds only the parts
+  given (a part not given is absent, not `None`), each replacing that part:
+  `weather` keys `cloud_cover_oktas` (0 clear to 8 overcast, 9 sky hidden), `sun`
+  (`(azimuth, elevation, illuminance)`: rad clockwise from north, rad above the horizon, lx
+  with 0 for not given), `fog_visual_range` (m), `precipitation` (`(kind, mm/h)` with kind
+  `"dry"`, `"rain"` or `"snow"`), `wind` (`(direction, speed)`: rad counterclockwise from
+  +x, the way it blows to; m/s). `time_of_day` keys `hours` (0-24, local), `day_of_year`
+  (1-366), `animation` (bool), `date_time` (the scenario's string).
+- **`set_weather(preset, parameters)`**: the last request decides: a preset replaces the
+  whole weather; parameters change only those named, on top of what is there. "Apply it
+  again after every `load`" means the weather as it stands after the last request. An empty
+  request (no preset, no parameters) never reaches the world: the shell refuses it with
+  `ok: false`; a `ValueError` becomes `WeatherReply.success: false` with its message.
+
+A `World` subclass need not call `World.__init__` (it has none worth calling).
+
 ### The clock and the episode
 
 The Python shell keeps `sim_time` (elapsed seconds, starting at 0, adding `substeps * dt`
@@ -127,7 +171,11 @@ The shell has no `main`: a server writes its own, in three calls from
 `swb_world_server.server` and `swb_world_server.lifetime`:
 
 - `lifetime.die_with_parent()`: SIGTERM when the parent dies (a supervisor killed with
-  SIGKILL); exits 1 if the parent is already gone. Linux only, a no-op elsewhere.
+  SIGKILL); exits 1 if the parent is already gone. Linux only, a no-op elsewhere. So the
+  parent must outlive the server: started as `python3 server.py &` from a script that then
+  exits, the server is stopped at once. Run it under a supervisor (play_launch, systemd), in
+  the foreground, or as `setsid sh -c 'python3 server.py' &`, which keeps a `sh` as its
+  parent.
 - `bind(port, host="127.0.0.1")`: the REP socket, bound at once, before the simulator's
   long start. A held port logs the error, waits 30 s (so a respawning supervisor does not
   loop) and exits 1.
