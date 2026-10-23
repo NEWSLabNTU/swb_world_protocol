@@ -449,7 +449,8 @@ message SetGoal {
   double target_speed = 5;
 }
 
-// A weather: a preset name, or parameters by name (CARLA's `WeatherParameters` fields).
+// A weather: a preset name, or parameters by name. The names are the server's (CARLA's world
+// server takes CARLA's presets and `WeatherParameters` fields); `GetWeather` lists them.
 message Weather {
   string preset = 1;
   map<string, double> parameters = 2;

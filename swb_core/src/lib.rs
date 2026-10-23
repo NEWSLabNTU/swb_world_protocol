@@ -3,7 +3,7 @@
 //! What the bridge and every world server share: SSv2's `simulation_interface` and the world
 //! protocol as Rust types ([`proto`]), the [`sim::SimBackend`] seam and its types, and the
 //! policy that knows no simulator -- the entity table, simulation time (`sim_time`), NPC tracking, the
-//! gap trace, contact reports, the agent link, weather presets, the configuration. Nothing
+//! gap trace, contact reports, the agent link, the weather request, the configuration. Nothing
 //! here depends on a simulator's client library: the dependency graph is the boundary.
 
 pub mod agent_link;

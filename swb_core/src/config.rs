@@ -241,8 +241,10 @@ pub struct BridgeConfig {
     /// (`tcp://host:port`; empty = the default). swb connects to it as a commander (see
     /// `agent_link`). Read it through [`BridgeConfig::agent_relay`].
     pub agent_relay: String,
-    /// CARLA weather preset (`ClearNoon`, ...) applied on connect and after every map load;
-    /// empty leaves CARLA's (roadmap 018). `/scenario_world_bridge/set_weather` replaces it at run time.
+    /// A weather preset, by the world server's name for it (CARLA's: `ClearNoon`, ...),
+    /// applied on connect and after every world load; empty leaves the world's own (roadmaps
+    /// 018, 051). `/scenario_world_bridge/set_weather` replaces it at run time. The world
+    /// server checks the name.
     pub weather: String,
     /// How SSv2-driven NPC vehicles and pedestrians move in CARLA (roadmap 023).
     pub npc_motion: NpcMotion,
@@ -534,8 +536,6 @@ impl BridgeConfig {
             self.agent_relay = relay.to_string();
         }
         if let Some(weather) = params.get("weather").filter(|v| !v.trim().is_empty()) {
-            crate::weather::preset_or_err(weather.trim())
-                .map_err(|e| eyre::eyre!("parameter weather:={weather}: {e}"))?;
             self.weather = weather.trim().to_string();
         }
         if let Some(motion) = params.get("npc_motion").filter(|v| !v.trim().is_empty()) {
@@ -622,10 +622,6 @@ impl BridgeConfig {
             bail!("ego.role_name is empty; acb_bridge finds the ego by it");
         }
         crate::agent_link::parse_relay_address(self.agent_relay()).wrap_err("agent_relay")?;
-        if !self.weather.trim().is_empty() {
-            crate::weather::preset_or_err(self.weather.trim())
-                .map_err(|e| eyre::eyre!("weather: {e}"))?;
-        }
         Ok(())
     }
 
@@ -884,7 +880,7 @@ mod tests {
     }
 
     #[test]
-    fn weather_comes_from_file_or_parameter_and_must_be_a_preset() {
+    fn weather_comes_from_file_or_parameter() {
         let params = |v: &str| {
             crate::ros_args::RosParams::from_args([
                 "--ros-args".to_string(),
@@ -893,7 +889,7 @@ mod tests {
             ])
             .expect("parses")
         };
-        // Unset: leave CARLA's.
+        // Unset: leave the world's own.
         let config: BridgeConfig = serde_yaml::from_str("{}").expect("parses");
         assert_eq!(config.weather, "");
         assert!(config.validate().is_ok());
@@ -904,18 +900,9 @@ mod tests {
         // An empty parameter (the launch default) keeps the file's.
         config.apply_ros_params(&params("")).expect("applies");
         assert_eq!(config.weather, "CloudyNoon");
-        config
-            .apply_ros_params(&params("ClearNoon"))
-            .expect("applies");
-        assert_eq!(config.weather, "ClearNoon");
-
-        let err = config.apply_ros_params(&params("Sunny")).unwrap_err();
-        assert!(
-            format!("{err}").contains("unknown weather preset 'Sunny'"),
-            "{err}"
-        );
-        let config: BridgeConfig = serde_yaml::from_str("weather: Sunny\n").expect("parses");
-        assert!(config.validate().is_err());
+        // The name is the world server's to check (roadmap 051).
+        config.apply_ros_params(&params(" Sunny ")).expect("applies");
+        assert_eq!(config.weather, "Sunny");
     }
 
     #[test]

@@ -679,32 +679,48 @@ fn conformance(endpoint: &str, map: Option<String>) -> ExitCode {
         );
     }
     if has(wire::Capability::Weather) {
-        let set = call(
-            &mut c,
-            Q::SetWeather(wire::SetWeather {
-                weather: Some(wire::Weather {
-                    preset: "ClearNoon".into(),
-                    ..Default::default()
-                }),
-            }),
-            LOAD_TIMEOUT,
-        );
-        let got = call(&mut c, Q::GetWeather(wire::GetWeather {}), TIMEOUT * 5);
-        r.check(
-            "the weather is set and read back (WEATHER)",
-            match (set, got) {
-                (
-                    Ok(_),
-                    Ok(wire::Reply {
-                        reply: Some(wire::reply::Reply::Weather(w)),
-                        ..
+        // Simulator-neutral: read the weather, change one of its own parameters, read it back
+        // (the names and presets are the server's), then put the original back.
+        let get = |c: &mut _| match call(c, Q::GetWeather(wire::GetWeather {}), TIMEOUT * 5) {
+            Ok(wire::Reply {
+                reply: Some(wire::reply::Reply::Weather(w)),
+                ..
+            }) if w.success => w.weather.ok_or_else(|| "no weather in the reply".to_string()),
+            other => Err(format!("get_weather answered {other:?}")),
+        };
+        let set = |c: &mut _, parameters: std::collections::HashMap<String, f64>| {
+            call(
+                c,
+                Q::SetWeather(wire::SetWeather {
+                    weather: Some(wire::Weather {
+                        parameters,
+                        use_parameters: true,
+                        ..Default::default()
                     }),
-                ) if w.weather.as_ref().is_some_and(|x| x.preset == "ClearNoon") => {
-                    Ok(String::new())
+                }),
+                LOAD_TIMEOUT,
+            )
+        };
+        let result = get(&mut c).and_then(|before| {
+            let mut names: Vec<&String> = before.parameters.keys().collect();
+            names.sort();
+            let name = names
+                .first()
+                .map(|n| (*n).clone())
+                .ok_or_else(|| "get_weather names no parameter".to_string())?;
+            let changed = before.parameters[&name] + 1.0;
+            set(&mut c, [(name.clone(), changed)].into_iter().collect())
+                .map_err(|e| format!("set_weather: {e}"))?;
+            let after = get(&mut c)?;
+            set(&mut c, before.parameters.clone()).map_err(|e| format!("restoring: {e}"))?;
+            match after.parameters.get(&name) {
+                Some(v) if (v - changed).abs() <= 1e-3 * changed.abs().max(1.0) => {
+                    Ok(format!("{name} {} -> {v}", before.parameters[&name]))
                 }
-                (a, b) => Err(format!("set {a:?}, get {b:?}")),
-            },
-        );
+                other => Err(format!("set {name} to {changed}, read back {other:?}")),
+            }
+        });
+        r.check("the weather is set and read back by parameter (WEATHER)", result);
     } else {
         r.skip("weather", "no WEATHER");
     }
