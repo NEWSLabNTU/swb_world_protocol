@@ -156,6 +156,9 @@ pub struct Reply {
     pub registered: bool,
     /// The agent's latest phase, when it has reported one.
     pub phase: Option<String>,
+    /// The vehicle spec the agent's autopilot files were generated from (its registration's
+    /// `spec_hash`, roadmap 051), when it sent one.
+    pub spec_hash: Option<String>,
 }
 
 impl Reply {
@@ -174,7 +177,13 @@ impl Reply {
             .and_then(|s| s.get("phase"))
             .and_then(Value::as_str)
             .map(str::to_string);
+        let spec_hash = v
+            .get("spec_hash")
+            .and_then(Value::as_str)
+            .filter(|h| !h.is_empty())
+            .map(str::to_string);
         Ok(Self {
+            spec_hash,
             registered: v
                 .get("registered")
                 .and_then(Value::as_bool)
@@ -583,6 +592,20 @@ impl AgentLink {
         Ok(())
     }
 
+    /// The `spec_hash` the agent registered for `entity` sent, `None` when no agent is
+    /// registered or it sent none (roadmap 051). Synchronous, like [`Self::check_agent`].
+    pub fn agent_spec_hash(&mut self, entity: &str) -> Result<Option<String>> {
+        let reply = match self.probe_query(entity) {
+            Ok(reply) => reply,
+            Err(_) => {
+                self.probe = None;
+                self.probe_query(entity)
+                    .wrap_err_with(|| format!("the agent relay at {} is unreachable", self.relay))?
+            }
+        };
+        Ok(reply.registered.then_some(reply.spec_hash).flatten())
+    }
+
     fn probe_query(&mut self, entity: &str) -> Result<Reply> {
         if self.probe.is_none() {
             self.probe = Some(RelayConnection::connect(&self.relay)?);
@@ -777,6 +800,7 @@ mod tests {
             message: String::new(),
             registered,
             phase: phase.map(str::to_string),
+            spec_hash: None,
         }
     }
 
@@ -979,6 +1003,16 @@ mod tests {
             "message": "no agent", "registered": false}))
         .unwrap();
         assert!(!r.registered && r.phase.is_none() && r.message == "no agent");
+        assert_eq!(r.spec_hash, None);
+        // Roadmap 051: the spec the agent's autopilot files came from; empty is none.
+        let r = Reply::from_json(&json!({"type": "reply", "id": 1, "status": "OK",
+            "message": "", "registered": true, "spec_hash": "d5d4"}))
+        .unwrap();
+        assert_eq!(r.spec_hash.as_deref(), Some("d5d4"));
+        let r = Reply::from_json(&json!({"type": "reply", "id": 1, "status": "OK",
+            "message": "", "registered": true, "spec_hash": ""}))
+        .unwrap();
+        assert_eq!(r.spec_hash, None);
     }
 
     #[test]

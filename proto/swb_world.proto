@@ -270,6 +270,10 @@ message Body {
   // refuses an ego whose wheels or box are more than 2 cm from what SSv2 declared (the
   // vehicle catalog's).
   Wheels wheels = 11;
+  // The vehicle spec the server built the body from (sim_vehicle_spec's spec_hash: the rig
+  // or the physics it applied), empty when none. The bridge compares it with the vehicle
+  // agent's and the catalog's before the scenario starts (roadmap 051).
+  string spec_hash = 12;
 }
 
 message Wheels {

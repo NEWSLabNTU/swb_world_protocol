@@ -61,7 +61,8 @@ class World:
         (`TRACKED_MOTION`) or ``EXTERNAL`` (the ego). May return a dict for the reply's
         `Body` (``model``, ``box_location``, ``box_extent``, ``origin_offset``, ``wheels``:
         ``(front_x, rear_x, track, radius)`` in the entity frame, for a vehicle whose wheels
-        the world knows); None: the declared box at the entity origin."""
+        the world knows; ``spec_hash``, the vehicle spec it built the body from); None: the
+        declared box at the entity origin."""
         raise NotImplementedError
 
     def despawn(self, handle):

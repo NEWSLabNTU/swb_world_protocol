@@ -47,7 +47,7 @@ class FakeWorld(World):
         self.bodies[handle] = {"name": name, "kind": kind, "pose": pose, "dims": dims,
                                "model": model, "motion": motion, "twist": None}
         if kind == "EGO":  # the car it built, wheels in the entity frame (roadmap 051)
-            return {"model": "fake:car", "wheels": (3.0, 0.0, 1.6, 0.35)}
+            return {"model": "fake:car", "wheels": (3.0, 0.0, 1.6, 0.35), "spec_hash": "abc"}
 
     def despawn(self, handle):
         del self.bodies[handle]
@@ -159,6 +159,7 @@ class ServerTest(unittest.TestCase):
         self.assertAlmostEqual(r.spawn.body.box_extent.x, 2.25)
         w = r.spawn.body.wheels
         self.assertEqual((w.front_x, w.rear_x, w.track, w.radius), (3.0, 0.0, 1.6, 0.35))
+        self.assertEqual(r.spawn.body.spec_hash, "abc")
         r = spawn(self.server, "npc", "VEHICLE", -10.0)
         self.assertEqual(r.spawn.body.model, "fake:box")
         self.assertFalse(r.spawn.body.HasField("wheels"))
