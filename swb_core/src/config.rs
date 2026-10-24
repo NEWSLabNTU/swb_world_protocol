@@ -59,8 +59,9 @@ pub struct WorldConfig {
     /// How long a request may take before the server counts as hung, s: the bridge then
     /// exits for its supervisor to restart (034).
     pub request_timeout_seconds: u64,
-    /// The same for `LoadWorld`, which may open a large USD stage, and for an ego's `Spawn`,
-    /// which waits for its sensors' first frames (038).
+    /// The same for `LoadWorld`, which may open a large USD stage, and for every `Spawn`: an
+    /// ego's waits for its sensors' first frames (038), and a body's first render compiles
+    /// its materials (Isaac, 044).
     pub load_timeout_seconds: u64,
     /// Ask the server to render once per frame (Isaac: off by default, a render costs 3-5 ms
     /// of the frame, 037; on to watch the world on a display). A server that renders anyway
