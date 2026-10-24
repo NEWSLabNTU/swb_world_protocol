@@ -685,7 +685,9 @@ fn conformance(endpoint: &str, map: Option<String>) -> ExitCode {
             Ok(wire::Reply {
                 reply: Some(wire::reply::Reply::Weather(w)),
                 ..
-            }) if w.success => w.weather.ok_or_else(|| "no weather in the reply".to_string()),
+            }) if w.success => w
+                .weather
+                .ok_or_else(|| "no weather in the reply".to_string()),
             other => Err(format!("get_weather answered {other:?}")),
         };
         let set = |c: &mut _, parameters: std::collections::HashMap<String, f64>| {
@@ -720,7 +722,10 @@ fn conformance(endpoint: &str, map: Option<String>) -> ExitCode {
                 other => Err(format!("set {name} to {changed}, read back {other:?}")),
             }
         });
-        r.check("the weather is set and read back by parameter (WEATHER)", result);
+        r.check(
+            "the weather is set and read back by parameter (WEATHER)",
+            result,
+        );
     } else {
         r.skip("weather", "no WEATHER");
     }

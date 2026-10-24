@@ -200,8 +200,12 @@ mod tests {
     fn the_wire_form_round_trips() {
         let p = WeatherRequest::Preset("ClearNoon".into());
         assert_eq!(wire_form::request_of(&wire_form::request(&p)), Ok(p));
-        let r = decode_request("", &names(&["cloudiness", "sun_altitude_angle"]), &[1.0, 2.0])
-            .unwrap();
+        let r = decode_request(
+            "",
+            &names(&["cloudiness", "sun_altitude_angle"]),
+            &[1.0, 2.0],
+        )
+        .unwrap();
         assert_eq!(wire_form::request_of(&wire_form::request(&r)), Ok(r));
         let w = Weather {
             preset: "ClearNoon".into(),

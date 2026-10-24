@@ -901,7 +901,9 @@ mod tests {
         config.apply_ros_params(&params("")).expect("applies");
         assert_eq!(config.weather, "CloudyNoon");
         // The name is the world server's to check (roadmap 051).
-        config.apply_ros_params(&params(" Sunny ")).expect("applies");
+        config
+            .apply_ros_params(&params(" Sunny "))
+            .expect("applies");
         assert_eq!(config.weather, "Sunny");
     }
 
