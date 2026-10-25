@@ -21,8 +21,10 @@
 //!
 //! # Coordinates
 //!
-//! Node positions come from the `local_x` / `local_y` / `ele` tags, not from `lat`/`lon`.
-//! Those local coordinates are in the ROS frame, so converting to CARLA is the usual Y-flip.
+//! Node positions come from the `local_x` / `local_y` / `ele` tags, and from `lat`/`lon`
+//! through Autoware's projection where a node has no tags (`local_from_lat_lon`). In a
+//! repaired map the tags are that projection (`scripts/repair_lanelet_local_coords.py` in
+//! scenario-world-bridge), in the ROS frame, so converting to CARLA is the usual Y-flip.
 //! [`TrafficLightElement::carla_position`] does that.
 //!
 //! Verified against the TUM-converted Town01 map: 36 traffic light ways, each with two
@@ -52,23 +54,48 @@ use std::path::Path;
 const REFERS_ROLE: &str = "refers";
 
 /// WGS84 semi-major axis, the radius the TUM converter projected with.
-const EARTH_RADIUS_M: f64 = 6_378_137.0;
+const WGS84_A: f64 = 6_378_137.0;
+const WGS84_F: f64 = 1.0 / 298.257_223_563;
+/// Autoware's and SSv2's TransverseMercator scale factor when `map_projector_info.yaml`
+/// names none, as on every CARLA town.
+const TM_K0: f64 = 0.9996;
 
 /// Local coordinates derived from a node's `lat`/`lon`.
 ///
-/// Most nodes carry `local_x`/`local_y` directly, but Town03's traffic light nodes carry
-/// only `lat`/`lon` -- which is why all 38 of its lights went missing when local coordinates
-/// were treated as required.
+/// Town03's traffic light nodes carried only `lat`/`lon` before the map repair -- which is
+/// why all 38 of its lights went missing when local coordinates were treated as required.
 ///
-/// The maps declare `projector_type: local` and were produced about the origin, so the
-/// projection is a plain equirectangular one. Checked against the 20,000 Town01 nodes that
-/// carry both forms: maximum error 0.0000 m in both axes, i.e. this is exactly how the
-/// converter generated `local_x`/`local_y`.
+/// The position is what Autoware and SSv2 compute: the TransverseMercator the maps'
+/// `map_projector_info.yaml` declares, about (0, 0) on WGS84 with k0 = 0.9996 (Snyder's
+/// series, within a millimetre of pyproj over a town). The repaired maps' `local_x` /
+/// `local_y` hold the same projection (`scripts/repair_lanelet_local_coords.py`). The pack's
+/// own were a spherical Mercator, 0.7 % long in y (2.2 m on Town01's y = -330 road).
 fn local_from_lat_lon(lat_deg: f64, lon_deg: f64) -> (f64, f64) {
-    (
-        lon_deg.to_radians() * EARTH_RADIUS_M,
-        lat_deg.to_radians() * EARTH_RADIUS_M,
-    )
+    let e2 = WGS84_F * (2.0 - WGS84_F);
+    let ep2 = e2 / (1.0 - e2);
+    let lat = lat_deg.to_radians();
+    let (s, c) = lat.sin_cos();
+    let n = WGS84_A / (1.0 - e2 * s * s).sqrt();
+    let t = (s / c).powi(2);
+    let cc = ep2 * c * c;
+    let a = lon_deg.to_radians() * c;
+    let (e4, e6) = (e2 * e2, e2 * e2 * e2);
+    let m = WGS84_A
+        * ((1.0 - e2 / 4.0 - 3.0 * e4 / 64.0 - 5.0 * e6 / 256.0) * lat
+            - (3.0 * e2 / 8.0 + 3.0 * e4 / 32.0 + 45.0 * e6 / 1024.0) * (2.0 * lat).sin()
+            + (15.0 * e4 / 256.0 + 45.0 * e6 / 1024.0) * (4.0 * lat).sin()
+            - (35.0 * e6 / 3072.0) * (6.0 * lat).sin());
+    let x = TM_K0
+        * n
+        * (a + (1.0 - t + cc) * a.powi(3) / 6.0
+            + (5.0 - 18.0 * t + t * t + 72.0 * cc - 58.0 * ep2) * a.powi(5) / 120.0);
+    let y = TM_K0
+        * (m + n
+            * (s / c)
+            * (a * a / 2.0
+                + (5.0 - t + 9.0 * cc + 4.0 * cc * cc) * a.powi(4) / 24.0
+                + (61.0 - 58.0 * t + t * t + 600.0 * cc - 330.0 * ep2) * a.powi(6) / 720.0));
+    (x, y)
 }
 
 /// A traffic light found in a Lanelet2 map.
@@ -389,8 +416,7 @@ mod tests {
         );
     }
 
-    /// Town03's traffic light nodes carry only lat/lon. Validated against Town01, where
-    /// both forms are present, to 0.0000 m.
+    /// A node with only lat/lon is placed by Autoware's projection.
     #[test]
     fn lat_lon_is_used_when_local_coordinates_are_absent() {
         let xml = r#"<osm>
@@ -405,21 +431,25 @@ mod tests {
         </osm>"#;
         let lights = parse_traffic_lights(xml).expect("parses");
         assert_eq!(lights.len(), 1);
-        // Town01 node 1 carries exactly this lon alongside local_x=384.5899.
+        // Town01 node 1's lon; Autoware projects it to x = 384.4361 (the pack's spherical
+        // local_x said 384.5899).
         assert!(
-            (lights[0].x - 384.5899).abs() < 0.001,
+            (lights[0].x - 384.4361).abs() < 0.001,
             "x was {}",
             lights[0].x
         );
     }
 
     #[test]
-    fn projection_matches_the_converters_local_coordinates() {
-        // Town01 node 1: lat=-1.805613721080238e-07 lon=0.003454829852879983
-        //                local_x=384.5899 local_y=-0.0201
+    fn projection_is_autowares_transverse_mercator() {
+        // pyproj, +proj=tmerc +lat_0=0 +lon_0=0 +k=0.9996 +ellps=WGS84: Town01 node 1 and a
+        // point near Town01's southern road
         let (x, y) = local_from_lat_lon(-1.805613721080238e-07, 0.003454829852879983);
-        assert!((x - 384.5899).abs() < 0.001, "x was {x}");
-        assert!((y + 0.0201).abs() < 0.001, "y was {y}");
+        assert!((x - 384.4361).abs() < 0.001, "x was {x}");
+        assert!((y + 0.0200).abs() < 0.001, "y was {y}");
+        let (x, y) = local_from_lat_lon(-0.003, 0.003);
+        assert!((x - 333.8249).abs() < 0.001, "x was {x}");
+        assert!((y + 331.5901).abs() < 0.001, "y was {y}");
     }
 
     /// Explicit local coordinates win over lat/lon when both are present.
