@@ -498,6 +498,8 @@ dependencies = [
 name = "swb_world_check"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "serde_yaml",
  "swb_core",
 ]
 

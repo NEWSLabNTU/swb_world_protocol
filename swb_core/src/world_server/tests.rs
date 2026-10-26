@@ -196,6 +196,7 @@ fn what_is_not_offered_is_refused() {
     }
     for q in [
         wire::request::Request::SetSignals(Default::default()),
+        wire::request::Request::GetSignals(Default::default()),
         wire::request::Request::SetGoal(Default::default()),
         wire::request::Request::SetWeather(Default::default()),
         wire::request::Request::GetWeather(Default::default()),

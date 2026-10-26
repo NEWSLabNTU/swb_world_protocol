@@ -33,7 +33,7 @@
 // owner lease, `Apply`, `SetStepTime`, `SetGoal`, the weather, `Release`, the rich spawn and
 // read-back a server that moves its own bodies needs. (047's `SetRoadCondition` and
 // `SetEnvironment` need no bump: the bridge sends each only to a server declaring its
-// capability.)
+// capability. Nor does `GetSignals`: only `swb_world_check` sends it.)
 
 syntax = "proto3";
 
@@ -194,6 +194,20 @@ message SignalState {
 // Signal colours from the next step on (SSv2's `UpdateTrafficLights`, reduced to one colour
 // per lamp). Lamps not named keep theirs.
 message SetSignals {
+  repeated SignalState states = 1;
+}
+
+// `SIGNALS`: the colour each lamp shows now, read from the simulator rather than from what
+// was commanded, so a server that takes `SetSignals` and changes nothing is caught
+// (`swb_world_check conformance`). The bridge does not send it, which is why it needed no
+// version bump.
+message GetSignals {
+  // The lamps to read, by OpenDRIVE id; empty: every lamp the server holds a colour for.
+  // An id the server has no lamp for is refused.
+  repeated string opendrive_ids = 1;
+}
+
+message SignalsReply {
   repeated SignalState states = 1;
 }
 
@@ -570,6 +584,7 @@ message Request {
     Release release = 13;
     SetRoadCondition set_road_condition = 14;
     SetEnvironment set_environment = 15;
+    GetSignals get_signals = 16;
   }
   // The sender (every request, `Hello` included).
   ClientId client = 100;
@@ -586,6 +601,7 @@ message Reply {
     ApplyReply apply = 6;
     LoadWorldReply load_world = 7;
     WeatherReply weather = 8;
+    SignalsReply signals = 10;
   }
   // The server cannot go on (a hung simulator call, its simulator gone): it exits after this
   // reply, and the bridge ends as after a request that timed out.

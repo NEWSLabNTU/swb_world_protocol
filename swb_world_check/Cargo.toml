@@ -11,3 +11,5 @@ path = "src/main.rs"
 
 [dependencies]
 swb_core = { path = "../swb_core" }
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"

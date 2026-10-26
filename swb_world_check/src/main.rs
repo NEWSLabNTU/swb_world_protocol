@@ -15,7 +15,9 @@
 //! each capability the server declares -- then release it. Exit 0 when every check passed.
 //! It moves bodies in the server's world: run it between scenarios, never during one (a
 //! bridge that owns the server makes it refuse, which is itself checked). `--map` is the map
-//! to load (a CARLA town needs one); without it the server loads its default world.
+//! to load (a CARLA town needs one); without it the server loads its default world. With
+//! `SIGNALS` and a map whose directory has `traffic_lights.yaml`, one lamp of it is set red,
+//! then green, and read back from the world each time (`GetSignals`).
 //!
 //! `rtt`: the round trip of a probe `Hello`, N times: the protocol's own cost per request on
 //! this host (p50, p95, max), changing nothing on the server. `--gap-us`: a pause before
@@ -220,6 +222,84 @@ fn spawn(
     }
 }
 
+/// One lamp of the map's signal table, as `LoadWorld` carries it.
+#[derive(serde::Deserialize)]
+struct TableEntry {
+    way_id: u64,
+    #[serde(default)]
+    regulatory_element_ids: Vec<u64>,
+    opendrive_id: String,
+    /// CARLA frame (left-handed), m.
+    #[serde(default)]
+    carla_position: Option<[f64; 3]>,
+}
+
+#[derive(serde::Deserialize)]
+struct TableFile {
+    #[serde(default)]
+    signals: Vec<TableEntry>,
+}
+
+/// `<map dir>/traffic_lights.yaml` as `LoadWorld.signals`, the map's origin at the world's
+/// (as this check loads it); empty when the map has none.
+fn signal_table(map_dir: &std::path::Path) -> Result<Vec<wire::Signal>, String> {
+    let path = swb_core::map_resolver::signal_table(map_dir);
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let table: TableFile =
+        serde_yaml::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(table
+        .signals
+        .into_iter()
+        .map(|e| wire::Signal {
+            way_id: e.way_id,
+            regulatory_element_ids: e.regulatory_element_ids,
+            opendrive_id: e.opendrive_id,
+            position: e.carla_position.and_then(|p| v3(p[0], -p[1], p[2])),
+        })
+        .collect())
+}
+
+/// Set one lamp, step a frame (colours take effect from the next step), and read back what
+/// the world shows.
+fn set_and_read(
+    c: &mut Client,
+    opendrive_id: &str,
+    colour: wire::Colour,
+    steps: (u32, f64),
+) -> Result<wire::Colour, String> {
+    call(
+        c,
+        Q::SetSignals(wire::SetSignals {
+            states: vec![wire::SignalState {
+                opendrive_id: opendrive_id.into(),
+                colour: colour as i32,
+            }],
+        }),
+        TIMEOUT,
+    )?;
+    frame(c, vec![], steps)?;
+    match call(
+        c,
+        Q::GetSignals(wire::GetSignals {
+            opendrive_ids: vec![opendrive_id.into()],
+        }),
+        TIMEOUT,
+    )?
+    .reply
+    {
+        Some(wire::reply::Reply::Signals(s)) => s
+            .states
+            .iter()
+            .find(|s| s.opendrive_id == opendrive_id)
+            .map(|s| wire::Colour::try_from(s.colour).unwrap_or(wire::Colour::Off))
+            .ok_or_else(|| "GetSignals left it out".to_string()),
+        other => Err(format!("GetSignals answered with {other:?}")),
+    }
+}
+
 /// One SSv2 frame: Apply `poses`, then Step. The step's reply.
 fn frame(
     c: &mut Client,
@@ -405,10 +485,24 @@ fn conformance(endpoint: &str, map: Option<String>) -> ExitCode {
         Some(m) => (format!("{m}/lanelet2_map.osm"), m.clone()),
         None => (String::new(), String::new()),
     };
+    // The map's signal table, handed over at the load as a bridge would: the lamps the
+    // signals check reads back.
+    let signals = if has(wire::Capability::Signals) && !map_dir.is_empty() {
+        match signal_table(std::path::Path::new(&map_dir)) {
+            Ok(s) => s,
+            Err(e) => {
+                r.check("read the map's signal table", Err(e));
+                Vec::new()
+            }
+        }
+    } else {
+        Vec::new()
+    };
     let load = || {
         Q::LoadWorld(wire::LoadWorld {
             lanelet2_map_path: map_path.clone(),
             map_dir: map_dir.clone(),
+            signals: signals.clone(),
             map_origin: v3(0.0, 0.0, 0.0),
             step_time: STEP,
             realtime_factor: 1.0,
@@ -668,12 +762,62 @@ fn conformance(endpoint: &str, map: Option<String>) -> ExitCode {
             )
             .map(|_| String::new()),
         );
+        // A server can take every colour and show none: read the lamp back from the world.
+        match signals.first() {
+            None => r.skip(
+                "a lamp shows the colour it was set to",
+                "no signal table (--map a map dir with traffic_lights.yaml)",
+            ),
+            Some(lamp) => {
+                let od = lamp.opendrive_id.clone();
+                let mut shown = Vec::new();
+                let mut failure = None;
+                for colour in [wire::Colour::Red, wire::Colour::Green] {
+                    match set_and_read(&mut c, &od, colour, steps) {
+                        Ok(got) if got == colour => shown.push(format!("{colour:?}")),
+                        Ok(got) => {
+                            failure = Some(format!("set {colour:?}, it shows {got:?}"));
+                            break;
+                        }
+                        Err(e) => {
+                            failure = Some(e);
+                            break;
+                        }
+                    }
+                }
+                r.check(
+                    "a lamp shows the colour it was set to",
+                    match failure {
+                        Some(e) => Err(format!("OpenDRIVE id {od}: {e}")),
+                        None => Ok(format!("OpenDRIVE id {od}: {}", shown.join(", then "))),
+                    },
+                );
+                r.check(
+                    "a lamp the server does not have is refused",
+                    match call(
+                        &mut c,
+                        Q::GetSignals(wire::GetSignals {
+                            opendrive_ids: vec!["swb-no-such-lamp".into()],
+                        }),
+                        TIMEOUT,
+                    ) {
+                        Err(e) if e.contains("refused") => Ok(String::new()),
+                        other => Err(format!("answered {other:?}")),
+                    },
+                );
+            }
+        }
     } else {
         r.skip("signals", "no SIGNALS");
         r.check(
             "signals are refused without SIGNALS",
-            match call(&mut c, Q::SetSignals(wire::SetSignals::default()), TIMEOUT) {
-                Err(e) if e.contains("refused") => Ok(String::new()),
+            match (
+                call(&mut c, Q::SetSignals(wire::SetSignals::default()), TIMEOUT),
+                call(&mut c, Q::GetSignals(wire::GetSignals::default()), TIMEOUT),
+            ) {
+                (Err(a), Err(b)) if a.contains("refused") && b.contains("refused") => {
+                    Ok(String::new())
+                }
                 other => Err(format!("answered {other:?}")),
             },
         );

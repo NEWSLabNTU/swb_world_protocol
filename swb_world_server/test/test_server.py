@@ -43,6 +43,12 @@ class FakeWorld(World):
     def set_signals(self, colours):
         self.colours.update(colours)
 
+    def get_signals(self, opendrive_ids):
+        unknown = [od for od in opendrive_ids if od not in self.colours]
+        if unknown:
+            raise ValueError(f"no lamp for OpenDRIVE id(s) {', '.join(unknown)}")
+        return {od: self.colours[od] for od in (opendrive_ids or self.colours)}
+
     def spawn(self, handle, name, kind, subtype, center, dims, pose, model="", motion="KINEMATIC"):
         self.bodies[handle] = {"name": name, "kind": kind, "pose": pose, "dims": dims,
                                "model": model, "motion": motion, "twist": None}
@@ -229,9 +235,10 @@ class ServerTest(unittest.TestCase):
         self.world.capabilities = ()
         bare = WorldServer(self.world, clock=self.clock)
         hello(bare)
-        r = call(bare, set_signals=pb.SetSignals())
-        self.assertFalse(r.ok)
-        self.assertIn("signals are not offered", r.error)
+        for request in ({"set_signals": pb.SetSignals()}, {"get_signals": pb.GetSignals()}):
+            r = call(bare, **request)
+            self.assertFalse(r.ok)
+            self.assertIn("signals are not offered", r.error)
         r = spawn(bare, "npc", "VEHICLE", 0.0, motion="TRACKED")
         self.assertFalse(r.ok)
         # No SIGNALS: the map's signals are not handed to the world.
@@ -311,6 +318,15 @@ class ServerTest(unittest.TestCase):
             pb.SignalState(opendrive_id="376", colour=pb.COLOUR["OFF"])]))
         self.assertTrue(r.ok, r.error)
         self.assertEqual(self.world.colours, {"377": "RED", "376": "OFF"})
+        r = call(self.server, get_signals=pb.GetSignals(opendrive_ids=["377"]))
+        self.assertTrue(r.ok, r.error)
+        self.assertEqual([(s.opendrive_id, s.colour) for s in r.signals.states],
+                         [("377", pb.COLOUR["RED"])])
+        r = call(self.server, get_signals=pb.GetSignals())
+        self.assertEqual(len(r.signals.states), 2)
+        r = call(self.server, get_signals=pb.GetSignals(opendrive_ids=["999"]))
+        self.assertFalse(r.ok)
+        self.assertIn("999", r.error)
 
     def test_bad_requests_are_refused_and_the_server_goes_on(self):
         hello(self.server)

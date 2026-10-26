@@ -81,6 +81,13 @@ pub trait World {
             "traffic signals are not offered by this server",
         ))
     }
+    /// `SIGNALS`: the colour each named lamp shows now (every lamp held, when none is
+    /// named), read from the simulator, not from what was commanded.
+    fn get_signals(&mut self, _request: &wire::GetSignals) -> WorldResult<wire::SignalsReply> {
+        Err(Refusal::new(
+            "traffic signals are not offered by this server",
+        ))
+    }
     fn set_goal(&mut self, _request: &wire::SetGoal) -> WorldResult<()> {
         Err(Refusal::new(
             "goals are not offered by this server (no AUTOPILOT)",
@@ -381,6 +388,7 @@ impl<W: World> Shell<W> {
             Q::Release(_) => "release",
             Q::SetRoadCondition(_) => "set_road_condition",
             Q::SetEnvironment(_) => "set_environment",
+            Q::GetSignals(_) => "get_signals",
         };
         self.check_owner(what, client)?;
         self.last_world_request = Instant::now();
@@ -466,6 +474,10 @@ impl<W: World> Shell<W> {
                 self.need(wire::Capability::Signals, "traffic signals are")?;
                 self.world.set_signals(&req)?;
                 ok(None)
+            }
+            Q::GetSignals(req) => {
+                self.need(wire::Capability::Signals, "traffic signals are")?;
+                ok(Some(R::Signals(self.world.get_signals(&req)?)))
             }
             Q::SetGoal(req) => {
                 self.need(wire::Capability::Autopilot, "goals are")?;

@@ -80,6 +80,12 @@ class World:
         ``GREEN``, from the next step on."""
         raise NotImplementedError("this simulator has no traffic signals")
 
+    def get_signals(self, opendrive_ids):
+        """`SIGNALS`: ``{opendrive_id: colour}``, the colour each lamp in `opendrive_ids`
+        shows now (every lamp it holds a colour for, when empty), read from the simulator, not
+        from what `set_signals` was told. Raise ValueError naming an id it has no lamp for."""
+        raise NotImplementedError("this simulator has no traffic signals")
+
     def set_road_condition(self, friction_scale, wetness, properties):
         """`ROAD_CONDITION`: OpenSCENARIO's road condition, the whole road state from the next
         step on (`wetness` one of OpenSCENARIO's levels; `properties` the `swb.` ones,

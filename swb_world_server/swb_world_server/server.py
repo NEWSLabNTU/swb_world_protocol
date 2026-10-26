@@ -312,6 +312,17 @@ class WorldServer:
                                 for s in req.states})
         return pb.Reply(ok=True)
 
+    def _get_signals(self, req):
+        if not self.offers("SIGNALS"):
+            raise RequestError("traffic signals are not offered by this server")
+        try:
+            shown = self.world.get_signals(list(req.opendrive_ids))
+        except ValueError as e:
+            raise RequestError(str(e)) from e
+        return pb.Reply(ok=True, signals=pb.SignalsReply(states=[
+            pb.SignalState(opendrive_id=od, colour=pb.COLOUR[colour])
+            for od, colour in sorted(shown.items())]))
+
     def _set_goal(self, _req):
         raise RequestError("goals are not offered by this server (no AUTOPILOT)")
 
