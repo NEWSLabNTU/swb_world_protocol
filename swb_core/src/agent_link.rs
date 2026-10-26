@@ -54,6 +54,12 @@ const POLL: Duration = Duration::from_millis(500);
 /// How soon a `teleported` that found no agent (or no relay) is tried again.
 const RETRY: Duration = Duration::from_secs(1);
 
+/// The relay answered for the agent because the agent did not reply in time
+/// (scenario_agent_relay server.py: "agent did not reply to ... within ... s").
+fn relay_timed_out(reply: &Reply) -> bool {
+    reply.message.starts_with("agent did not reply to ")
+}
+
 /// Phases in which an agent takes a goal (`set_goal` fails while INITIALIZING/UNAVAILABLE).
 pub fn takes_goals(phase: &str) -> bool {
     matches!(
@@ -297,6 +303,15 @@ impl EntityQueue {
             // as soon as it registers.
             Command::Teleported(_) if !reply.registered => {
                 self.not_before = Some(now + RETRY);
+            }
+            // The agent has it and is still re-localizing (swb_agent's AutowareAgent
+            // answers once the estimate has converged, 10-40 s with three Autoware
+            // vehicles on one host): as for a reply while INITIALIZING, a goal waits until
+            // the agent reports a phase that takes goals. Only the relay's own timeout;
+            // an agent's FAILED stays the entity's error.
+            Command::Teleported(_) if reply.registered && relay_timed_out(reply) => {
+                self.queue.pop_front();
+                self.not_before = None;
             }
             // Raced the agent back into INITIALIZING: wait for it again.
             Command::SetGoal { .. }
@@ -864,6 +879,37 @@ mod tests {
         q.on_reply("bg", &goal(), &reply("OK", true, Some("PLANNING")), later);
         assert_eq!(q.next(later + POLL, true), Next::Idle);
         assert!(q.error().is_none());
+    }
+
+    #[test]
+    fn a_teleported_the_agent_is_still_working_on_is_not_failed() {
+        let now = Instant::now();
+        let mut q = EntityQueue::default();
+        q.push(Command::Teleported(P));
+        q.push(goal());
+        assert_eq!(q.next(now, true), Next::Send(Command::Teleported(P)));
+        let mut late = reply("FAILED", true, Some("INITIALIZING"));
+        late.message = "agent did not reply to teleported within 10.0 s".into();
+        q.on_reply("bg", &Command::Teleported(P), &late, now);
+        assert!(q.error().is_none());
+        assert_eq!(
+            q.next(now, true),
+            Next::Query,
+            "the goal waits for localization"
+        );
+        q.on_query(&reply("OK", true, Some("IDLE")), now);
+        assert_eq!(q.next(now + POLL, true), Next::Send(goal()));
+    }
+
+    #[test]
+    fn a_teleported_the_agent_failed_is_the_entitys_error() {
+        let now = Instant::now();
+        let mut q = EntityQueue::default();
+        q.push(Command::Teleported(P));
+        let mut failed = reply("FAILED", true, Some("INITIALIZING"));
+        failed.message = "localization did not reach the reset pose in 30 s".into();
+        q.on_reply("bg", &Command::Teleported(P), &failed, now);
+        assert!(q.error().is_some());
     }
 
     #[test]
